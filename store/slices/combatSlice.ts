@@ -8,10 +8,26 @@ export const createCombatSlice: StateCreator<GameStore, [], [], any> = (
   get
 ) => ({
   processEnemyTurn: () => {
-    const { enemies, player, map, turn, addEffects, addLog, screenShake } =
-      get();
+    const {
+      enemies,
+      player,
+      map,
+      turn,
+      addEffects,
+      addLog,
+      screenShake,
+    } = get();
     let currentHp = player.stats.hp;
     let shake = screenShake;
+
+    // Regen mana
+    const regenMana = Math.min(player.stats.maxMana, player.stats.mana + 2);
+    set((state) => ({
+      player: {
+        ...state.player,
+        stats: { ...state.player.stats, mana: regenMana },
+      },
+    }));
 
     const activeEnemies = enemies.map((enemy: Entity) => {
       if (!enemy.isHostile || enemy.stats.hp <= 0) return enemy;
@@ -25,7 +41,6 @@ export const createCombatSlice: StateCreator<GameStore, [], [], any> = (
         Math.abs(player.position.y - enemy.position.y);
       const behavior = enemy.aiBehavior || "aggressive";
 
-      // --- SORTS ENNEMIS ---
       if (
         (behavior === "caster" || enemy.isBoss) &&
         enemy.spells &&
@@ -70,7 +85,6 @@ export const createCombatSlice: StateCreator<GameStore, [], [], any> = (
       if (enemy.equipment?.weapon?.range)
         weaponRange = enemy.equipment.weapon.range;
 
-      // --- COMPORTEMENT ARCHER (Fuite/Positionnement) ---
       if (behavior === "archer") {
         if (dist < 3) {
           const dx = enemy.position.x - player.position.x;
@@ -83,9 +97,13 @@ export const createCombatSlice: StateCreator<GameStore, [], [], any> = (
         }
       }
 
-      // --- ATTAQUE AU CORPS A CORPS ---
       if (dist <= weaponRange) {
         let rawDmg = Math.max(1, enemy.stats.attack - player.stats.defense);
+        const attackName =
+          enemy.name.includes("Rat") || enemy.name.includes("Loup")
+            ? "mord"
+            : "frappe";
+        addLog(`${enemy.name} vous ${attackName} (${rawDmg} Dégâts)`);
         addEffects(
           player.position.x,
           player.position.y,
@@ -94,20 +112,11 @@ export const createCombatSlice: StateCreator<GameStore, [], [], any> = (
           `-${rawDmg}`,
           "#fff"
         );
-
-        // Log d'attaque détaillé
-        const attackName =
-          enemy.name.includes("Rat") || enemy.name.includes("Loup")
-            ? "mord"
-            : "frappe";
-        addLog(`${enemy.name} vous ${attackName} (${rawDmg} Dégâts)`);
-
         currentHp -= rawDmg;
         shake = Math.max(shake, 5);
         return enemyWithMana;
       }
 
-      // --- DEPLACEMENT ---
       let dx = 0;
       let dy = 0;
       if (player.position.x > enemy.position.x) dx = 1;
@@ -151,6 +160,7 @@ export const createCombatSlice: StateCreator<GameStore, [], [], any> = (
     const {
       player,
       enemies,
+      map,
       addEffects,
       processEnemyTurn,
       addLog,
@@ -232,32 +242,56 @@ export const createCombatSlice: StateCreator<GameStore, [], [], any> = (
         }
       });
 
-      // --- VERIFICATION VICTOIRE (Via Sort) ---
       const remainingHostiles = newEnemies.filter(
         (e) => e.isHostile && e.stats.hp > 0
       );
-
       if (remainingHostiles.length === 0) {
         const stairsIdx = newEnemies.findIndex((e) => e.type === "stairs");
         if (stairsIdx !== -1 && newEnemies[stairsIdx].isHidden) {
+          // LOGIQUE DE DEPLACEMENT DE L'ESCALIER PRES DU JOUEUR (Identique MapSlice)
+          const pX = player.position.x;
+          const pY = player.position.y;
+          let stairsX = pX;
+          let stairsY = pY;
+
+          const offsets = [
+            [1, 0],
+            [-1, 0],
+            [0, 1],
+            [0, -1],
+            [1, 1],
+            [1, -1],
+            [-1, 1],
+            [-1, -1],
+          ];
+          for (let o of offsets) {
+            const nx = pX + o[0];
+            const ny = pY + o[1];
+            if (nx >= 0 && nx < map[0].length && ny >= 0 && ny < map.length) {
+              if (map[ny][nx].type !== "wall") {
+                const occupied = newEnemies.some(
+                  (e) =>
+                    e.position.x === nx && e.position.y === ny && !e.isHidden
+                );
+                if (!occupied) {
+                  stairsX = nx;
+                  stairsY = ny;
+                  break;
+                }
+              }
+            }
+          }
+
           newEnemies[stairsIdx] = {
             ...newEnemies[stairsIdx],
+            position: { x: stairsX, y: stairsY },
             isHidden: false,
           };
           set({ screenShake: 40 });
-          addEffects(
-            newEnemies[stairsIdx].position.x,
-            newEnemies[stairsIdx].position.y,
-            "#FCD34D",
-            150,
-            "DÉLIVRANCE !",
-            "#FFF"
-          );
+          addEffects(stairsX, stairsY, "#FCD34D", 150, "DÉLIVRANCE !", "#FFF");
           addLog("La zone est purifiée par votre magie !");
         }
       }
-      // ----------------------------------------
-
       newEnemies = newEnemies.filter(
         (e) => e.stats.hp > 0 || e.type !== "enemy"
       );

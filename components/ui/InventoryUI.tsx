@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import useGameStore from "@/store/gameStore";
-import { X, Shield, Sword, Gem } from "lucide-react";
+import { X, Shield, Sword, Gem, Trash2 } from "lucide-react";
+import { useEffect } from "react";
 
 export default function InventoryUI() {
   const {
@@ -9,9 +10,35 @@ export default function InventoryUI() {
     toggleInventory,
     equipItem,
     useItem,
+    removeItem,
     selectedInventoryIndex,
     inputMethod,
   } = useGameStore();
+
+  // Écouteur pour la touche Suppr clavier
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Delete" || e.key === "Backspace") {
+        const item = inventory[selectedInventoryIndex];
+        if (item) removeItem(item);
+      }
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [inventory, selectedInventoryIndex, removeItem]);
+
+  // Écouteur manette (Bouton Y/Triangle pour supprimer, par exemple)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const gp = navigator.getGamepads()[0];
+      if (gp && gp.buttons[3].pressed) {
+        // Bouton Y (Nord)
+        const item = inventory[selectedInventoryIndex];
+        if (item) removeItem(item);
+      }
+    }, 200);
+    return () => clearInterval(interval);
+  }, [inventory, selectedInventoryIndex, removeItem]);
 
   return (
     <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/80 backdrop-blur-sm">
@@ -41,7 +68,7 @@ export default function InventoryUI() {
               label="Bijou"
             />
           </div>
-          <div className="mt-auto text-xs text-zinc-500 space-y-1">
+          <div className="mt-auto text-xs text-zinc-500 space-y-2">
             <p className="flex justify-between items-center">
               <span>Naviguer :</span>
               {inputMethod === "gamepad" ? (
@@ -60,6 +87,16 @@ export default function InventoryUI() {
                 </span>
               ) : (
                 <strong className="text-zinc-300">Entrée</strong>
+              )}
+            </p>
+            <p className="flex justify-between items-center">
+              <span>Jeter :</span>
+              {inputMethod === "gamepad" ? (
+                <span className="w-5 h-5 bg-yellow-600 rounded-full flex items-center justify-center text-white font-bold">
+                  Y
+                </span>
+              ) : (
+                <strong className="text-zinc-300">Suppr</strong>
               )}
             </p>
             <p className="flex justify-between items-center">
@@ -86,7 +123,7 @@ export default function InventoryUI() {
               <X size={24} />
             </button>
           </div>
-          <div className="grid grid-cols-4 gap-3 overflow-y-auto content-start">
+          <div className="grid grid-cols-4 gap-3 overflow-y-auto content-start max-h-[450px]">
             {inventory.map((item, index) => {
               const isSelected = index === selectedInventoryIndex;
               return (
@@ -118,6 +155,19 @@ export default function InventoryUI() {
                   </span>
                   {isSelected && (
                     <div className="absolute inset-0 border-2 border-amber-500 rounded-lg animate-pulse pointer-events-none"></div>
+                  )}
+                  {/* Petit bouton poubelle au survol/selection */}
+                  {isSelected && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeItem(item);
+                      }}
+                      className="absolute -top-2 -right-2 bg-red-900 text-white rounded-full p-1 border border-red-500 hover:bg-red-700"
+                      title="Jeter"
+                    >
+                      <Trash2 size={12} />
+                    </button>
                   )}
                 </div>
               );

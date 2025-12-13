@@ -15,7 +15,7 @@ export const SPELL_DB: Record<string, Spell> = {
   },
   heal: {
     id: "heal",
-    name: "Soin Divin",
+    name: "Soin Vital",
     cost: 25,
     range: 0,
     damage: 0,

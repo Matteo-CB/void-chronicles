@@ -100,7 +100,7 @@ const BASE_MOBS = [
   },
   {
     key: "MAGE",
-    name: "Sorcier",
+    name: "Sorcier Rebelle",
     hp: 40,
     atk: 12,
     sprite: "SORCERER",
@@ -133,7 +133,7 @@ const BASE_MOBS = [
   },
   {
     key: "LICH",
-    name: "Liche",
+    name: "Sorcier Ancien",
     hp: 180,
     atk: 30,
     sprite: "GHOST",

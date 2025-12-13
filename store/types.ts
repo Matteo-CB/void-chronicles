@@ -16,6 +16,7 @@ export interface CombatSlice {
 
 export interface InventorySlice {
   addItem: (item: Item) => void;
+  removeItem: (item: Item) => void; // AJOUT
   equipItem: (item: Item) => void;
   useItem: (item: Item) => void;
   toggleInventory: () => void;
@@ -30,7 +31,6 @@ export interface InventorySlice {
 export interface MapSlice {
   initGame: (loadSave?: boolean) => void;
   saveGame: () => void;
-  // Logique interne exposée pour le PlayerSlice
   movePlayerMapLogic: (dir: Direction) => void;
   interactMapLogic: () => void;
 }

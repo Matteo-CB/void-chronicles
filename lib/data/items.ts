@@ -5,7 +5,7 @@ const WEAPONS: Record<WeaponType, any[]> = {
   sword: [
     { name: "Épée Rouillée", atk: 5 },
     { name: "Glaive", atk: 12 },
-    { name: "Lamerunique", atk: 25 },
+    { name: "Lame Runique", atk: 25 },
     { name: "Excalibur", atk: 50 },
     { name: "Ragnarok", atk: 80 },
   ],
@@ -13,7 +13,7 @@ const WEAPONS: Record<WeaponType, any[]> = {
     { name: "Arc Court", atk: 4 },
     { name: "Arc Composite", atk: 10 },
     { name: "Arc Elfique", atk: 20 },
-    { name: "Arc Céleste", atk: 40 },
+    { name: "Arc Stellaire", atk: 40 },
     { name: "Artemis", atk: 70 },
   ],
   pistol: [
@@ -68,23 +68,25 @@ export function generateLoot(level: number): Item {
   if (typeRoll > 0.6) type = "accessory";
   if (typeRoll > 0.85) type = "spellbook";
 
+  const rarityColor =
+    rarity === "mythic"
+      ? "#ef4444"
+      : rarity === "legendary"
+      ? "#fbbf24"
+      : rarity === "epic"
+      ? "#a855f7"
+      : rarity === "rare"
+      ? "#3b82f6"
+      : "#fff";
+
   const item: Item = {
     id: Math.random().toString(),
     name: "Objet",
     type,
     rarity,
     value: level * 10 * mult,
-    visualColor:
-      rarity === "mythic"
-        ? "#ef4444"
-        : rarity === "legendary"
-        ? "#fbbf24"
-        : rarity === "epic"
-        ? "#a855f7"
-        : rarity === "rare"
-        ? "#3b82f6"
-        : "#fff",
-    color: "#fff",
+    visualColor: rarityColor,
+    color: rarityColor,
     description: "",
     stats: {},
   };
@@ -108,6 +110,7 @@ export function generateLoot(level: number): Item {
     item.spellId = spellKey;
     item.description = "Utiliser pour apprendre.";
     item.visualColor = spell.color;
+    item.color = spell.color;
   } else if (type === "accessory") {
     item.name = "Anneau de Puissance";
     item.stats = {

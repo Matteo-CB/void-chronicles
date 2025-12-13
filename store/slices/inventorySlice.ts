@@ -78,6 +78,18 @@ export const createInventorySlice: StateCreator<GameStore, [], [], any> = (
 
   addItem: (item: Item) => {
     const { player, inventory, addLog } = get();
+
+    // Gestion unique des accessoires
+    if (item.type === "accessory") {
+      const alreadyHas =
+        inventory.some((i) => i.name === item.name) ||
+        player.equipment.accessory?.name === item.name;
+      if (alreadyHas) {
+        addLog("Vous possédez déjà cet accessoire !");
+        return;
+      }
+    }
+
     if (item.type === "spellbook" && item.spellId) {
       if (player.spells.find((s) => s.id === item.spellId)) {
         addLog("Sort déjà connu !");
@@ -105,6 +117,12 @@ export const createInventorySlice: StateCreator<GameStore, [], [], any> = (
     }
     set({ inventory: [...inventory, item] });
     addLog(`Obtenu : ${item.name}`);
+  },
+
+  removeItem: (item: Item) => {
+    const { inventory, addLog } = get();
+    set({ inventory: inventory.filter((i) => i.id !== item.id) });
+    addLog(`Jeté : ${item.name}`);
   },
 
   equipItem: (item: Item) => {

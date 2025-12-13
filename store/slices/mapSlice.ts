@@ -140,7 +140,6 @@ export const createMapSlice: StateCreator<GameStore, [], [], any> = (
       (e) => e.position.x === targetX && e.position.y === targetY && !e.isHidden
     );
 
-    // CORRECTION : "stairs" retiré des bloqueurs pour pouvoir marcher dessus
     const blocker = entitiesOnTarget.find(
       (e) =>
         e.isHostile ||
@@ -154,12 +153,10 @@ export const createMapSlice: StateCreator<GameStore, [], [], any> = (
       return;
     }
 
-    // Déplacement
     set((state) => ({
       player: { ...state.player, position: { x: targetX, y: targetY } },
     }));
 
-    // GESTION OBJETS (Or / Potion)
     const loot = entitiesOnTarget.filter(
       (e) => e.type === "gold" || e.type === "potion"
     );
@@ -185,7 +182,6 @@ export const createMapSlice: StateCreator<GameStore, [], [], any> = (
       set({ enemies: newEnemies });
     }
 
-    // GESTION ESCALIERS (Si on marche dessus)
     const stairs = entitiesOnTarget.find(
       (e) => e.type === "stairs" && !e.isHidden
     );
@@ -194,7 +190,6 @@ export const createMapSlice: StateCreator<GameStore, [], [], any> = (
       const next = dungeonLevel + 1;
       set({ isLoading: true });
 
-      // Petit délai pour la transition
       setTimeout(() => {
         const { generateDungeon } = require("../../lib/dungeon");
         const { map, spawn, entities, levelConfig } = generateDungeon(next);
@@ -215,15 +210,23 @@ export const createMapSlice: StateCreator<GameStore, [], [], any> = (
         });
         saveGame();
       }, 500);
-      return; // Pas de tour ennemi pendant le chargement
+      return;
     }
 
     processEnemyTurn();
   },
 
   interactMapLogic: () => {
-    const { player, enemies, dungeonLevel, addItem, addLog, addEffects } =
-      get();
+    const {
+      player,
+      enemies,
+      dungeonLevel,
+      saveGame,
+      addEffects,
+      addItem,
+      addLog,
+      map, // Besoin de la map pour placer l'escalier
+    } = get();
 
     let dx = 0;
     let dy = 0;
@@ -311,7 +314,7 @@ export const createMapSlice: StateCreator<GameStore, [], [], any> = (
           set((s) => ({ player: { ...s.player, xp: newXp } }));
         }
 
-        // --- VERIFICATION DE VICTOIRE (Escalier Apparition) ---
+        // --- VERIFICATION DE VICTOIRE (Escalier) ---
         const remainingHostiles = newEnemies.filter(
           (e) => e.isHostile && e.stats.hp > 0
         );
@@ -319,20 +322,62 @@ export const createMapSlice: StateCreator<GameStore, [], [], any> = (
         if (remainingHostiles.length === 0) {
           const stairsIdx = newEnemies.findIndex((e) => e.type === "stairs");
           if (stairsIdx !== -1 && newEnemies[stairsIdx].isHidden) {
+            // LOGIQUE DE DEPLACEMENT DE L'ESCALIER PRES DU JOUEUR
+            const pX = player.position.x;
+            const pY = player.position.y;
+            let stairsX = pX;
+            let stairsY = pY;
+            let foundSpot = false;
+
+            // Recherche d'une case libre autour du joueur (rayon 1 ou 2)
+            const offsets = [
+              [1, 0],
+              [-1, 0],
+              [0, 1],
+              [0, -1],
+              [1, 1],
+              [1, -1],
+              [-1, 1],
+              [-1, -1],
+            ];
+
+            for (let o of offsets) {
+              const nx = pX + o[0];
+              const ny = pY + o[1];
+              // Vérifier si c'est un sol, pas de mur, et pas d'entité bloquante
+              if (nx >= 0 && nx < map[0].length && ny >= 0 && ny < map.length) {
+                if (map[ny][nx].type !== "wall") {
+                  const occupied = newEnemies.some(
+                    (e) =>
+                      e.position.x === nx && e.position.y === ny && !e.isHidden
+                  );
+                  if (!occupied) {
+                    stairsX = nx;
+                    stairsY = ny;
+                    foundSpot = true;
+                    break;
+                  }
+                }
+              }
+            }
+
+            // Mise à jour de la position de l'escalier
             newEnemies[stairsIdx] = {
               ...newEnemies[stairsIdx],
+              position: { x: stairsX, y: stairsY },
               isHidden: false,
             };
+
             set({ screenShake: 40 });
             addEffects(
-              newEnemies[stairsIdx].position.x,
-              newEnemies[stairsIdx].position.y,
+              stairsX,
+              stairsY,
               "#FCD34D",
               150,
               "DÉLIVRANCE !",
               "#FFF"
             );
-            addLog("Une brèche lumineuse s'ouvre !");
+            addLog("Une brèche lumineuse s'ouvre près de vous !");
           }
         }
       }
@@ -360,7 +405,7 @@ export const createMapSlice: StateCreator<GameStore, [], [], any> = (
           "#fff"
         );
       } else if (contactTarget.type === "shrine") {
-        addLog("Sanctuaire : Mana Infini !");
+        addLog("Autel : Mana Infini !");
         set({
           player: { ...player, stats: { ...player.stats, mana: 999 } },
           enemies: enemies.filter((e) => e.id !== contactTarget.id),
