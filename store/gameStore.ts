@@ -61,8 +61,7 @@ export const useGameStore = create<GameStore>()((...a) => ({
   showResetConfirmation: false,
   isLoading: false,
   currentBiomeId: "cave",
-  selectedInventoryIndex: 0,
-  selectedShopIndex: 0,
+  menuSelectionIndex: 0,
   inputMethod: "keyboard",
 }));
 

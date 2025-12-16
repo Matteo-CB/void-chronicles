@@ -1,35 +1,47 @@
 import { Item, ItemType, Rarity, WeaponType } from "@/types/game";
 import { SPELL_DB } from "./spells";
 
-const WEAPONS: Record<WeaponType, any[]> = {
+const PREFIXES = [
+  { name: "Acéré", stat: "attack", val: 0.2 },
+  { name: "Lourd", stat: "knockback", val: 1 },
+  { name: "Mystique", stat: "mana", val: 20 },
+  { name: "Vital", stat: "hp", val: 30 },
+  { name: "Royal", stat: "all", val: 0.1 },
+];
+
+const SUFFIXES = [
+  { name: "de Feu", effect: "burn", color: "#f97316" },
+  { name: "de Glace", effect: "freeze", color: "#0ea5e9" },
+  { name: "du Vampire", effect: "lifesteal", color: "#ef4444" },
+  { name: "de la Tempête", effect: "stun", color: "#facc15" },
+  { name: "de Destruction", effect: "crit", color: "#a855f7" },
+];
+
+const BASE_WEAPONS: Record<
+  WeaponType,
+  { name: string; range: number; dmg: number }[]
+> = {
   sword: [
-    { name: "Épée Rouillée", atk: 5 },
-    { name: "Glaive", atk: 12 },
-    { name: "Lame Runique", atk: 25 },
-    { name: "Excalibur", atk: 50 },
-    { name: "Ragnarok", atk: 80 },
+    { name: "Épée", range: 1, dmg: 8 },
+    { name: "Katana", range: 1, dmg: 10 },
+    { name: "Claymore", range: 1, dmg: 14 },
   ],
   bow: [
-    { name: "Arc Court", atk: 4 },
-    { name: "Arc Composite", atk: 10 },
-    { name: "Arc Elfique", atk: 20 },
-    { name: "Arc Stellaire", atk: 40 },
-    { name: "Artemis", atk: 70 },
+    { name: "Arc Court", range: 5, dmg: 8 },
+    { name: "Arc Long", range: 7, dmg: 12 },
   ],
   pistol: [
-    { name: "Vieux Pistolet", atk: 8 },
-    { name: "Revolver", atk: 18 },
-    { name: "Blaster", atk: 35 },
-    { name: "Annihilateur", atk: 60 },
-    { name: "Juge", atk: 100 },
+    { name: "Pistolet", range: 5, dmg: 12 },
+    { name: "Revolver", range: 6, dmg: 16 },
   ],
   staff: [
-    { name: "Bâton Noueux", atk: 3 },
-    { name: "Bâton de Mage", atk: 8 },
-    { name: "Sceptre Royal", atk: 15 },
-    { name: "Bâton du Vide", atk: 30 },
-    { name: "Infini", atk: 60 },
+    { name: "Bâton", range: 3, dmg: 6 },
+    { name: "Sceptre", range: 4, dmg: 9 },
   ],
+  dagger: [{ name: "Dague", range: 1, dmg: 6 }],
+  axe: [{ name: "Hache", range: 1, dmg: 12 }],
+  spear: [{ name: "Lance", range: 2, dmg: 10 }],
+  wand: [{ name: "Baguette", range: 4, dmg: 8 }],
 };
 
 export const POTION_ITEM: Item = {
@@ -42,31 +54,38 @@ export const POTION_ITEM: Item = {
   visualColor: "#f43f5e",
   color: "#f43f5e",
   stats: {},
+  spriteKey: "POTION",
 };
 
 export function generateLoot(level: number): Item {
   const roll = Math.random();
   let rarity: Rarity = "common";
   let mult = 1;
+  let affixChance = 0.2;
+
   if (roll > 0.98) {
     rarity = "mythic";
     mult = 5;
+    affixChance = 1.0;
   } else if (roll > 0.9) {
     rarity = "legendary";
     mult = 3.5;
+    affixChance = 0.8;
   } else if (roll > 0.75) {
     rarity = "epic";
     mult = 2;
+    affixChance = 0.5;
   } else if (roll > 0.5) {
     rarity = "rare";
     mult = 1.5;
+    affixChance = 0.3;
   }
 
   const typeRoll = Math.random();
   let type: ItemType = "weapon";
-  if (typeRoll > 0.35) type = "armor";
-  if (typeRoll > 0.6) type = "accessory";
-  if (typeRoll > 0.85) type = "spellbook";
+  if (typeRoll > 0.45) type = "armor";
+  if (typeRoll > 0.75) type = "accessory";
+  if (typeRoll > 0.92) type = "spellbook";
 
   const rarityColor =
     rarity === "mythic"
@@ -79,47 +98,121 @@ export function generateLoot(level: number): Item {
       ? "#3b82f6"
       : "#fff";
 
-  const item: Item = {
+  let spriteKey = "ROCK";
+  if (type === "armor") spriteKey = "ARMOR";
+  else if (type === "accessory") spriteKey = "RELIC";
+  else if (type === "spellbook") spriteKey = "SPELLBOOK";
+
+  // Initialisation propre de stats pour éviter undefined plus tard
+  let item: Item = {
     id: Math.random().toString(),
     name: "Objet",
     type,
     rarity,
-    value: level * 10 * mult,
+    spriteKey,
+    value: Math.floor(level * 15 * mult),
     visualColor: rarityColor,
     color: rarityColor,
     description: "",
-    stats: {},
+    stats: {
+      critChance: 0.05,
+      critDamage: 1.5,
+      attack: 0,
+      defense: 0,
+      hp: 0,
+      mana: 0,
+      maxHp: 0,
+      maxMana: 0,
+    },
   };
+
+  // ... (Logique prefixes/suffixes conservée telle quelle, juste besoin d'assurer que stats existe)
+  // Comme item.stats est initialisé ci-dessus, on peut y accéder sans souci
+
+  const hasPrefix = Math.random() < affixChance;
+  const hasSuffix = Math.random() < affixChance;
+  let prefix = hasPrefix
+    ? PREFIXES[Math.floor(Math.random() * PREFIXES.length)]
+    : null;
+  let suffix = hasSuffix
+    ? SUFFIXES[Math.floor(Math.random() * SUFFIXES.length)]
+    : null;
 
   if (type === "weapon") {
     const wTypes: WeaponType[] = ["sword", "bow", "pistol", "staff"];
     const wt = wTypes[Math.floor(Math.random() * wTypes.length)];
-    const baseList = WEAPONS[wt];
-    const base =
-      baseList[Math.min(baseList.length - 1, Math.floor(level / 15))];
-    item.name = `${base.name}`;
+    const baseList = BASE_WEAPONS[wt] || BASE_WEAPONS["sword"];
+    const base = baseList[Math.floor(Math.random() * baseList.length)];
+
+    item.name = base.name;
     item.weaponType = wt;
-    item.range = wt === "bow" || wt === "pistol" ? 5 : wt === "staff" ? 3 : 1;
-    item.stats = { attack: Math.floor(base.atk * mult * (1 + level * 0.1)) };
-    if (rarity !== "common") item.name += ` +${Math.floor(mult)}`;
+    item.spriteKey = `WEAPON_${wt.toUpperCase()}`;
+    item.range = base.range;
+    let atk = Math.floor((base.dmg + level * 2) * mult);
+
+    if (prefix) {
+      item.name = `${prefix.name} ${item.name}`;
+      if (prefix.stat === "attack") atk = Math.floor(atk * (1 + prefix.val));
+      if (prefix.stat === "knockback")
+        item.onHitEffect = { type: "knockback", chance: 1, value: 1 };
+    }
+
+    // Assertion non null car on l'a initialisé
+    item.stats!.attack = atk;
+
+    if (suffix) {
+      item.name = `${item.name} ${suffix.name}`;
+      if (suffix.effect === "burn")
+        item.applyStatus = {
+          type: "burn",
+          chance: 0.3,
+          duration: 3,
+          power: Math.max(1, level / 2),
+        };
+      if (suffix.effect === "freeze")
+        item.applyStatus = {
+          type: "freeze",
+          chance: 0.2,
+          duration: 2,
+          power: 0,
+        };
+      if (suffix.effect === "lifesteal")
+        item.onHitEffect = { type: "lifesteal", chance: 1, value: 0.1 };
+      if (suffix.effect === "crit") item.stats!.critChance = 0.25;
+      item.visualColor = suffix.color;
+    }
   } else if (type === "spellbook") {
     const keys = Object.keys(SPELL_DB);
     const spellKey = keys[Math.floor(Math.random() * keys.length)];
-    const spell = SPELL_DB[spellKey];
-    item.name = `Grimoire: ${spell.name}`;
-    item.spellId = spellKey;
-    item.description = "Utiliser pour apprendre.";
-    item.visualColor = spell.color;
-    item.color = spell.color;
+    const spell = SPELL_DB[spellKey as keyof typeof SPELL_DB];
+    if (spell) {
+      item.name = `Grimoire: ${spell.name}`;
+      item.spellId = spellKey;
+      item.description = "Apprendre le sort.";
+      item.visualColor = spell.color;
+      item.color = spell.color;
+    }
   } else if (type === "accessory") {
-    item.name = "Anneau de Puissance";
-    item.stats = {
-      maxHp: Math.floor(20 * mult * level),
-      maxMana: Math.floor(10 * mult * level),
-    };
+    item.name = "Relique";
+    if (prefix) {
+      item.name = `${prefix.name} ${item.name}`;
+      item.stats!.maxHp = 20 * level;
+    }
+    if (suffix) {
+      item.name = `${item.name} ${suffix.name}`;
+      item.stats!.critChance = 0.1;
+    }
+    if (!prefix && !suffix) item.stats!.maxMana = 20 * level;
   } else {
-    item.name = "Plastron Renforcé";
-    item.stats = { defense: Math.floor(5 * mult * level) };
+    // Armor
+    item.name = "Plastron";
+    item.stats!.defense = Math.floor(3 * mult * level);
+    item.stats!.maxHp = Math.floor(15 * mult * level);
+    if (prefix && prefix.stat === "hp")
+      item.stats!.maxHp = Math.floor(item.stats!.maxHp! * 1.5);
   }
+
+  if (rarity === "mythic") item.name = `[MYTHIQUE] ${item.name}`;
+
   return item;
 }

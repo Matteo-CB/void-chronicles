@@ -1,9 +1,9 @@
 import { LevelTheme } from "@/types/game";
 import { drawPlayer } from "./sprites/playerSprite";
-import { drawMob } from "./sprites/mobSprites";
-import { drawBoss } from "./sprites/bossSprites";
-import { drawItem } from "./sprites/itemSprites";
-import { drawDecor } from "./sprites/decorSprites";
+import { drawMob } from "./sprites/mobs";
+import { drawBoss } from "./sprites/bosses";
+import { drawItem } from "./sprites/items";
+import { drawDecor } from "./sprites/decor";
 
 const spriteCache: Record<string, HTMLCanvasElement> = {};
 
@@ -35,7 +35,6 @@ export function getSprite(
 
   if (!spriteCache[cacheKey]) {
     return createCachedSprite(cacheKey, (ctx) => {
-      // Routage vers les fonctions de dessin spécialisées
       if (type === "PLAYER") {
         drawPlayer(ctx);
       } else if (
@@ -47,6 +46,8 @@ export function getSprite(
           "CHEST",
           "POTION",
           "GOLD",
+          "RELIC", // Remplacement de l'Amulette
+          "ARMOR",
         ].includes(type)
       ) {
         drawItem(ctx, type, variant);
@@ -61,16 +62,22 @@ export function getSprite(
           "HERB",
           "STAIRS",
           "FIREBALL",
+          "BARREL",
+          "CRACK", // AJOUTÉ : Correction bug affichage fissure
+          "VENT", // AJOUTÉ : Correction bug affichage ventilation
+          "PIPE", // AJOUTÉ : Correction bug affichage tuyaux
+          "BONES", // AJOUTÉ : Correction bug affichage ossements
         ].includes(type) ||
         type.startsWith("CRYSTAL")
       ) {
         drawDecor(ctx, type, theme);
       } else if (
-        ["GOLEM", "LAVA_GOLEM", "TITAN", "DRAGON", "LICH"].includes(type)
+        ["GOLEM", "LAVA_GOLEM", "TITAN", "DRAGON", "LICH", "MERCHANT"].includes(
+          type
+        )
       ) {
         drawBoss(ctx, type);
       } else {
-        // Par défaut, c'est un mob commun
         drawMob(ctx, type);
       }
     });

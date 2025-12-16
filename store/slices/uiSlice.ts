@@ -1,100 +1,119 @@
 import { StateCreator } from "zustand";
 import { GameStore } from "../types";
-import { InputMethod } from "@/types/game";
+import { SpeechBubble } from "@/types/game";
 
-export const createUISlice: StateCreator<GameStore, [], [], any> = (
-  set,
-  get
-) => ({
-  log: [],
-  particles: [],
+export const createUISlice: StateCreator<
+  GameStore,
+  [],
+  [],
+  Pick<
+    GameStore,
+    | "setInputMethod"
+    | "advanceDialogue"
+    | "startCutscene" // NOUVEAU
+    | "advanceCutscene" // NOUVEAU
+    | "addLog"
+    | "closeUi"
+    | "triggerAttackAnim"
+    | "addSpeechBubble"
+    | "removeSpeechBubble"
+  >
+> = (set, get) => ({
+  logs: [],
   floatingTexts: [],
+  particles: [],
   screenShake: 0,
-  currentDialogue: "Chargement...",
-  showResetConfirmation: false,
+  isLoading: true,
+  currentDialogue: undefined,
+  currentCutsceneId: null, // Initialisation
+  currentMerchantId: undefined,
+  attackAnims: [],
+  speechBubbles: [],
   inputMethod: "keyboard",
 
-  setInputMethod: (method: InputMethod) => {
+  setInputMethod: (method: "keyboard" | "gamepad") => {
     if (get().inputMethod !== method) {
       set({ inputMethod: method });
     }
   },
 
-  toggleResetConfirmation: () =>
-    set((state) => ({ showResetConfirmation: !state.showResetConfirmation })),
-
-  addLog: (msg: string) => set((s) => ({ log: [msg, ...s.log].slice(0, 50) })),
-
+  // Ancien système (texte simple)
   advanceDialogue: () => {
-    const { player, initGame } = get();
-    if (player.stats.hp <= 0) {
-      initGame();
-    } else {
-      set({ currentDialogue: null, gameState: "playing" });
-    }
+    set({ currentDialogue: undefined, gameState: "playing" });
   },
 
-  addEffects: (
-    x: number,
-    y: number,
-    color: string,
-    count: number,
-    text?: string,
-    textColor?: string
-  ) => {
-    const TILE_SIZE = 48;
-    const newParticles = Array.from({ length: count }).map(() => ({
-      id: Math.random().toString(),
-      x: x * TILE_SIZE + TILE_SIZE / 2,
-      y: y * TILE_SIZE + TILE_SIZE / 2,
-      color,
-      size: Math.random() * 6 + 3,
-      life: 50 + Math.random() * 30,
-      maxLife: 80,
-      vx: (Math.random() - 0.5) * 12,
-      vy: (Math.random() - 0.5) * 12,
-    }));
+  // --- NOUVEAU SYSTÈME VISUAL NOVEL ---
 
-    let newTexts = [...get().floatingTexts];
-    if (text && textColor) {
-      newTexts.push({
-        id: Math.random().toString(),
-        x: x * TILE_SIZE + TILE_SIZE / 2,
-        y: y * TILE_SIZE,
-        text,
-        color: textColor,
-        life: 100,
-        vy: -1.5,
-      });
-    }
-    set((s) => ({
-      particles: [...s.particles, ...newParticles],
-      floatingTexts: newTexts,
-    }));
-  },
-
-  updateVisuals: () => {
-    set((s) => {
-      const shake = Math.max(0, s.screenShake - 1);
-      const parts = s.particles
-        .map((p) => ({
-          ...p,
-          x: p.x + p.vx,
-          y: p.y + p.vy,
-          life: p.life - 1.5,
-          vy: p.vy + 0.2,
-          size: Math.max(0, p.size - 0.1),
-        }))
-        .filter((p) => p.life > 0 && p.size > 0);
-      const txts = s.floatingTexts
-        .map((t) => ({
-          ...t,
-          y: t.y + t.vy,
-          life: t.life - 1,
-          vy: t.vy * 0.98,
-        }))
-        .filter((t) => t.life > 0);
-      return { screenShake: shake, particles: parts, floatingTexts: txts };
+  startCutscene: (id: string) => {
+    set({
+      currentCutsceneId: id,
+      gameState: "dialogue", // Met le jeu en pause
     });
+  },
+
+  advanceCutscene: () => {
+    // Cette fonction est appelée par StoryOverlay quand la scène est finie
+    set({
+      currentCutsceneId: null,
+      gameState: "playing", // Reprend le jeu
+    });
+  },
+
+  // ------------------------------------
+
+  addLog: (msg: string) => {
+    set((state) => ({ logs: [...state.logs, msg].slice(-20) }));
+  },
+
+  closeUi: () => {
+    set({ gameState: "playing", currentMerchantId: undefined });
+  },
+
+  triggerAttackAnim: (x: number, y: number, dir: string, type: string) => {
+    const id = Math.random().toString();
+    // On doit s'assurer que 'dir' est bien de type Direction
+    const validDir =
+      dir === "up" || dir === "down" || dir === "left" || dir === "right"
+        ? dir
+        : "down";
+
+    set((state) => ({
+      attackAnims: [
+        ...state.attackAnims,
+        { x, y, dir: validDir, type, progress: 0, id },
+      ],
+    }));
+
+    let p = 0;
+    const interval = setInterval(() => {
+      p += 0.1;
+      if (p >= 1) {
+        clearInterval(interval);
+        set((s) => ({
+          attackAnims: s.attackAnims.filter((a) => a.id !== id),
+        }));
+      } else {
+        set((s) => ({
+          attackAnims: s.attackAnims.map((a) =>
+            a.id === id ? { ...a, progress: p } : a
+          ),
+        }));
+      }
+    }, 30);
+  },
+
+  addSpeechBubble: (bubble: SpeechBubble) => {
+    set((state) => ({
+      speechBubbles: [...state.speechBubbles, bubble],
+    }));
+    setTimeout(() => {
+      get().removeSpeechBubble(bubble.id);
+    }, bubble.duration);
+  },
+
+  removeSpeechBubble: (id: string) => {
+    set((state) => ({
+      speechBubbles: state.speechBubbles.filter((b) => b.id !== id),
+    }));
   },
 });

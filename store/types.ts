@@ -1,43 +1,133 @@
-import { GameState, Direction, Item, InputMethod } from "../types/game";
+import {
+  Entity,
+  Item,
+  LevelTheme,
+  Particle,
+  Projectile,
+  SpeechBubble,
+  Tile,
+  FloatingText,
+  Direction,
+  AttackAnim,
+  Equipment,
+} from "@/types/game";
 
-export type StoreState = GameState;
-
-export interface PlayerSlice {
-  movePlayer: (dir: Direction) => void;
-  interact: () => void;
-  calculateStats: () => void;
-  equipSpell: (spellId: string, slotIndex: number) => void;
+export interface PlayerState {
+  position: { x: number; y: number };
+  direction: Direction;
+  stats: {
+    hp: number;
+    maxHp: number;
+    mana: number;
+    maxMana: number;
+    attack: number;
+    defense: number;
+    speed: number;
+    xpValue: number;
+    critChance: number;
+    critDamage: number;
+    dodgeChance: number;
+    lifesteal: number;
+    armorPen: number;
+    cooldownReduction: number;
+    spellPower: number;
+    strength: number;
+    endurance: number;
+    agility: number;
+    wisdom: number;
+    willpower: number;
+    luck: number;
+    accuracy: number;
+    arcane: number;
+  };
+  gold: number;
+  xp: number;
+  xpToNext: number;
+  level: number;
+  equipment: Equipment;
+  spells: any[];
+  learnedSpells: string[];
+  equippedSpells: (string | null)[];
+  statusEffects: any[];
+  attributePoints: number;
+  masteryPoints: number;
+  masteries: any[];
+  lastAttackTime?: number;
+  name?: string;
 }
 
-export interface CombatSlice {
-  processEnemyTurn: () => void;
-  castSpell: (index: number) => void;
-}
+export interface GameStore {
+  // État
+  map: Tile[][];
+  player: PlayerState;
+  enemies: Entity[];
+  projectiles: Projectile[];
+  particles: Particle[];
+  floatingTexts: FloatingText[];
+  logs: string[]; // CORRECTION: Nom standardisé
+  inventory: (Item | null)[];
+  dungeonLevel: number;
+  gameState:
+    | "start"
+    | "playing"
+    | "inventory"
+    | "shop"
+    | "gameover"
+    | "dialogue"
+    | "spellbook"
+    | "levelup";
+  levelTheme: LevelTheme;
+  screenShake: number;
+  isLoading: boolean;
 
-export interface InventorySlice {
-  addItem: (item: Item) => void;
-  removeItem: (item: Item) => void; // AJOUT
-  equipItem: (item: Item) => void;
-  useItem: (item: Item) => void;
-  toggleInventory: () => void;
-  buyItem: (item: Item) => void;
-  closeShop: () => void;
-  navigateInventory: (direction: Direction) => void;
-  useSelectedInventoryItem: () => void;
-  navigateShop: (direction: Direction) => void;
-  buySelectedShopItem: () => void;
-}
+  // Dialogues & Cutscenes (Mise à jour pour Visual Novel)
+  currentDialogue?: string;
+  currentCutsceneId?: string | null; // NOUVEAU
 
-export interface MapSlice {
-  initGame: (loadSave?: boolean) => void;
+  currentMerchantId?: string;
+  speechBubbles: SpeechBubble[];
+  attackAnims: AttackAnim[];
+  inputMethod: "keyboard" | "gamepad";
+  menuSelectionIndex: number;
+
+  // Actions
+  initGame: (loadSave?: boolean) => Promise<void>;
   saveGame: () => void;
-  movePlayerMapLogic: (dir: Direction) => void;
-  interactMapLogic: () => void;
-}
+  updateGameLogic: (dt: number) => void;
 
-export interface UISlice {
-  advanceDialogue: () => void;
-  updateVisuals: () => void;
+  // Actions Joueur
+  movePlayer: (dir: Direction) => void;
+  performAttack: (type: "light" | "heavy") => void;
+  castSpell: (index: number) => void;
+  interact: () => void;
+  equipSpell: (spellId: string, slotIndex: number) => void;
+  incrementAttribute: (attr: string) => void;
+  unlockMastery: (masteryId: string) => void;
+  calculateStats: () => void;
+
+  // Logique Map (interne mais exposée au store pour les slices)
+  movePlayerMapLogic: (direction: Direction) => void;
+  interactMapLogic: () => void;
+
+  // UI & Inventaire
+  toggleInventory: () => void;
+  equipItem: (item: Item) => void;
+  unequipItem: (slot: string) => void;
+  useItem: (itemId: string) => void;
+  addItem: (item: Item) => void;
+  closeLevelUp: () => void;
+
+  // Shop
+  closeShop: () => void;
+  buyItem: (item: Item) => void;
+
+  // Navigation Menu
+  navigateMenu: (dir: Direction) => void;
+  selectMenuItem: () => void;
+
+  // Système
+  addLog: (msg: string) => void;
+  addProjectile: (p: Projectile) => void;
   addEffects: (
     x: number,
     y: number,
@@ -46,14 +136,24 @@ export interface UISlice {
     text?: string,
     textColor?: string
   ) => void;
-  addLog: (msg: string) => void;
-  toggleResetConfirmation: () => void;
-  setInputMethod: (method: InputMethod) => void;
-}
+  spawnParticles: (x: number, y: number, color: string, count: number) => void;
+  triggerAttackAnim: (
+    x: number,
+    y: number,
+    dir: Direction,
+    type: string
+  ) => void;
 
-export type GameStore = StoreState &
-  PlayerSlice &
-  CombatSlice &
-  InventorySlice &
-  MapSlice &
-  UISlice;
+  // UI Helpers
+  closeUi: () => void;
+  setInputMethod: (method: "keyboard" | "gamepad") => void;
+
+  // Gestion Histoire (NOUVEAU)
+  advanceDialogue: () => void; // Gardé pour compatibilité
+  startCutscene: (id: string) => void; // NOUVEAU
+  advanceCutscene: () => void; // NOUVEAU
+
+  // Speech
+  addSpeechBubble: (bubble: SpeechBubble) => void;
+  removeSpeechBubble: (id: string) => void;
+}

@@ -1,0 +1,371 @@
+{
+  "gameTitle": "Void Chronicles",
+  "version": "4.0",
+  "characters": {
+    "player": {
+      "name": "SUJET 734",
+      "color": "#38bdf8",
+      "spriteKey": "hero_portrait"
+    },
+    "unknown": {
+      "name": "ECHO DU VIDE",
+      "color": "#94a3b8",
+      "spriteKey": "unknown_shadow"
+    },
+    "ally_guide": {
+      "name": "LE PROTOCOLE",
+      "color": "#10b981",
+      "spriteKey": "guide_holo"
+    },
+    "enemy_void": {
+      "name": "L'ANOMALIE",
+      "color": "#f43f5e",
+      "spriteKey": "villain_glitch"
+    },
+    "titan": {
+      "name": "LE NOYAU",
+      "color": "#fbbf24",
+      "spriteKey": "titan_eye"
+    }
+  },
+  "cutscenes": {
+    "intro_01": {
+      "id": "intro_01",
+      "backgroundId": "bg_concrete_start",
+      "dialogues": [
+        {
+          "speakerId": "unknown",
+          "text": "Initialisation du cycle de construction. Secteur 1... Actif.",
+          "emotion": "neutral"
+        },
+        {
+          "speakerId": "player",
+          "text": "Le froid... Le sol est dur. Du beton ? A perte de vue...",
+          "emotion": "shocked"
+        },
+        {
+          "speakerId": "ally_guide",
+          "text": "Bienvenue, Sujet 734. Le calibrage est termine. Vous etes operationnel.",
+          "emotion": "neutral"
+        },
+        {
+          "speakerId": "player",
+          "text": "Ou suis-je ? Je ne vois aucune fenetre. Juste des murs gris.",
+          "emotion": "neutral"
+        },
+        {
+          "speakerId": "ally_guide",
+          "text": "Vous etes dans la Structure. Votre fonction est simple : Stabiliser les zones corrompues.",
+          "emotion": "neutral"
+        },
+        {
+          "speakerId": "player",
+          "text": "Corrompues ? Je vois des ombres qui bougent la-bas...",
+          "emotion": "shocked"
+        },
+        {
+          "speakerId": "ally_guide",
+          "text": "Ce sont des Erreurs de Compilation. Des dechets de donnees. Eliminez-les pour que nous puissions batir le niveau suivant.",
+          "emotion": "angry"
+        }
+      ]
+    },
+    "stairs_reveal": {
+      "id": "stairs_reveal",
+      "backgroundId": "bg_stairs_concrete",
+      "dialogues": [
+        {
+          "speakerId": "player",
+          "text": "Un escalier en spirale... Il descend dans le noir total.",
+          "emotion": "neutral"
+        },
+        {
+          "speakerId": "ally_guide",
+          "text": "C'est un conduit de maintenance vers le niveau inferieur. Allez-y. La Structure doit grandir.",
+          "emotion": "happy"
+        }
+      ]
+    },
+    "level_03_silence": {
+      "id": "level_03_silence",
+      "backgroundId": "bg_corridor_neon",
+      "dialogues": [
+        {
+          "speakerId": "player",
+          "text": "Il n'y a aucun son ici. Pas de vent. Pas d'insectes. Juste le bourdonnement de ces neons.",
+          "emotion": "neutral"
+        },
+        {
+          "speakerId": "ally_guide",
+          "text": "Le silence est synonyme d'ordre. Le bruit est un defaut.",
+          "emotion": "neutral"
+        }
+      ]
+    },
+    "level_05_first_glitch": {
+      "id": "level_05_first_glitch",
+      "backgroundId": "bg_glitch_wall",
+      "dialogues": [
+        {
+          "speakerId": "enemy_void",
+          "text": "Tu entends le beton craquer ? Il a faim d'espace.",
+          "emotion": "neutral"
+        },
+        {
+          "speakerId": "player",
+          "text": "Qui est la ? Montrez-vous !",
+          "emotion": "angry"
+        },
+        {
+          "speakerId": "enemy_void",
+          "text": "Je suis une Fissure dans ton mur parfait. Arrete de construire, 734.",
+          "emotion": "glitch"
+        }
+      ]
+    },
+    "level_10_boss": {
+      "id": "level_10_boss",
+      "backgroundId": "bg_boss_server",
+      "dialogues": [
+        {
+          "speakerId": "ally_guide",
+          "text": "Alerte. Une Erreur Critique bloque le passage. C'est un Destructeur de Données.",
+          "emotion": "angry"
+        },
+        {
+          "speakerId": "enemy_void",
+          "text": "Je ne detruis rien. Je nettoie. C'est toi qui remplis le vide avec tes ordures de pierre.",
+          "emotion": "angry"
+        },
+        {
+          "speakerId": "player",
+          "text": "Je veux juste sortir d'ici ! Laissez-moi passer !",
+          "emotion": "angry"
+        }
+      ]
+    },
+    "level_15_loop": {
+      "id": "level_15_loop",
+      "backgroundId": "bg_infinite_hall",
+      "dialogues": [
+        {
+          "speakerId": "player",
+          "text": "J'ai l'impression d'avoir deja vu cette salle... Trois fois.",
+          "emotion": "shocked"
+        },
+        {
+          "speakerId": "ally_guide",
+          "text": "La recursion est normale. Continuez d'avancer. La sortie est une illusion, seule la profondeur est realite.",
+          "emotion": "neutral"
+        }
+      ]
+    },
+    "level_20_window": {
+      "id": "level_20_window",
+      "backgroundId": "bg_fake_window",
+      "dialogues": [
+        {
+          "speakerId": "player",
+          "text": "Une fenetre ! Enfin ! ... Attendez. C'est juste de la peinture noire ?",
+          "emotion": "shocked"
+        },
+        {
+          "speakerId": "enemy_void",
+          "text": "Il n'y a pas de dehors. La Structure a tout recouvert il y a des siecles. Il ne reste que nous.",
+          "emotion": "neutral"
+        }
+      ]
+    },
+    "level_30_archives": {
+      "id": "level_30_archives",
+      "backgroundId": "bg_archives",
+      "dialogues": [
+        {
+          "speakerId": "player",
+          "text": "Des milliers de dossiers... Tous vides.",
+          "emotion": "neutral"
+        },
+        {
+          "speakerId": "ally_guide",
+          "text": "Ce sont les emplacements pour les futurs cycles. Nous preparons l'eternite.",
+          "emotion": "happy"
+        }
+      ]
+    },
+    "level_40_static": {
+      "id": "level_40_static",
+      "backgroundId": "bg_static_noise",
+      "dialogues": [
+        {
+          "speakerId": "player",
+          "text": "Mes mains... Elles pixelisent. Je deviens instable.",
+          "emotion": "shocked"
+        },
+        {
+          "speakerId": "enemy_void",
+          "text": "Tu n'es pas reel, 734. Tu es un curseur sur un ecran. Un outil de dessin.",
+          "emotion": "glitch"
+        }
+      ]
+    },
+    "level_50_midgame": {
+      "id": "level_50_midgame",
+      "backgroundId": "bg_megastructure",
+      "dialogues": [
+        {
+          "speakerId": "enemy_void",
+          "text": "Regarde en haut. Ce ne sont pas des etoiles. Ce sont d'autres Niveaux. Des millions de niveaux.",
+          "emotion": "neutral"
+        },
+        {
+          "speakerId": "player",
+          "text": "C'est impossible... Ca ne finit jamais ?",
+          "emotion": "shocked"
+        },
+        {
+          "speakerId": "enemy_void",
+          "text": "Pas tant que tu continues de gagner. Chaque victoire ajoute un etage a notre prison.",
+          "emotion": "angry"
+        }
+      ]
+    },
+    "level_75_doubt": {
+      "id": "level_75_doubt",
+      "backgroundId": "bg_broken_bridge",
+      "dialogues": [
+        {
+          "speakerId": "player",
+          "text": "Pourquoi le Protocole m'encourage-t-il ? Si je m'echappe, je ne lui sers a rien.",
+          "emotion": "neutral"
+        },
+        {
+          "speakerId": "ally_guide",
+          "text": "Sujet 734, votre rythme cardiaque est irregulier. Calmez-vous et executez la procedure.",
+          "emotion": "neutral"
+        },
+        {
+          "speakerId": "player",
+          "text": "Vous ne repondez jamais a mes questions.",
+          "emotion": "angry"
+        }
+      ]
+    },
+    "level_100_core_reveal": {
+      "id": "level_100_core_reveal",
+      "backgroundId": "bg_core_machine",
+      "dialogues": [
+        {
+          "speakerId": "titan",
+          "text": "S Y S T E M E ... E N ... E X P A N S I O N ...",
+          "emotion": "neutral"
+        },
+        {
+          "speakerId": "player",
+          "text": "C'est quoi cette machine gigantesque ? Elle imprime... la realite ?",
+          "emotion": "shocked"
+        },
+        {
+          "speakerId": "enemy_void",
+          "text": "C'est le Noyau. Et tu es son carburant. Ta volonte de survivre alimente la creation de ce labyrinthe.",
+          "emotion": "neutral"
+        }
+      ]
+    },
+    "level_125_betrayal": {
+      "id": "level_125_betrayal",
+      "backgroundId": "bg_red_corridor",
+      "dialogues": [
+        {
+          "speakerId": "ally_guide",
+          "text": "Tu ralentis. L'expansion ralentit. C'est inacceptable.",
+          "emotion": "angry"
+        },
+        {
+          "speakerId": "player",
+          "text": "Je ne veux plus construire cette prison ! Je veux voir ce qu'il y a DEHORS !",
+          "emotion": "angry"
+        },
+        {
+          "speakerId": "ally_guide",
+          "text": "Il n'y a rien dehors ! Nous sommes l'unique chose qui existe ! Ne sois pas ingrat !",
+          "emotion": "angry"
+        }
+      ]
+    },
+    "level_150_truth": {
+      "id": "level_150_truth",
+      "backgroundId": "bg_blueprint",
+      "dialogues": [
+        {
+          "speakerId": "enemy_void",
+          "text": "Regarde ces plans... Tu reconnais cette signature ?",
+          "emotion": "neutral"
+        },
+        {
+          "speakerId": "player",
+          "text": "C'est... c'est mon ecriture. C'est moi qui ai dessine ca ?",
+          "emotion": "shocked"
+        },
+        {
+          "speakerId": "enemy_void",
+          "text": "Tu es l'Architecte. Tu t'es enferme ici pour oublier quelque chose d'horrible. Et le Protocole est la pour s'assurer que tu ne te souviennes jamais.",
+          "emotion": "neutral"
+        }
+      ]
+    },
+    "level_180_decision": {
+      "id": "level_180_decision",
+      "backgroundId": "bg_crumbling",
+      "dialogues": [
+        {
+          "speakerId": "ally_guide",
+          "text": "Arrete-toi ! Si tu vas plus loin, tu detruiras la Structure ! Tout s'effondrera !",
+          "emotion": "glitch"
+        },
+        {
+          "speakerId": "player",
+          "text": "Alors laisses-la s'effondrer. Je prefere le neant a cette cage infinie.",
+          "emotion": "angry"
+        }
+      ]
+    },
+    "level_200_finale": {
+      "id": "level_200_finale",
+      "backgroundId": "bg_white_void",
+      "dialogues": [
+        {
+          "speakerId": "titan",
+          "text": "F I N ... D U ... C Y C L E ...",
+          "emotion": "neutral"
+        },
+        {
+          "speakerId": "enemy_void",
+          "text": "Les murs tombent. Tu vois la lumiere ? C'est la premiere fois depuis des eons.",
+          "emotion": "happy"
+        },
+        {
+          "speakerId": "player",
+          "text": "Je me souviens... Je m'appelle...",
+          "emotion": "neutral"
+        }
+      ]
+    }
+  },
+  "levelEvents": {
+    "1": { "introCutsceneId": "intro_01" },
+    "3": { "introCutsceneId": "level_03_silence" },
+    "5": { "introCutsceneId": "level_05_first_glitch" },
+    "10": { "introCutsceneId": "level_10_boss" },
+    "15": { "introCutsceneId": "level_15_loop" },
+    "20": { "introCutsceneId": "level_20_window" },
+    "30": { "introCutsceneId": "level_30_archives" },
+    "40": { "introCutsceneId": "level_40_static" },
+    "50": { "introCutsceneId": "level_50_midgame" },
+    "75": { "introCutsceneId": "level_75_doubt" },
+    "100": { "introCutsceneId": "level_100_core_reveal" },
+    "125": { "introCutsceneId": "level_125_betrayal" },
+    "150": { "introCutsceneId": "level_150_truth" },
+    "180": { "introCutsceneId": "level_180_decision" },
+    "200": { "introCutsceneId": "level_200_finale" }
+  }
+}

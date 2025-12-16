@@ -1,6 +1,7 @@
 import { getSprite } from "@/lib/spriteEngine";
 import useGameStore from "@/store/gameStore";
 import { useEffect, useRef } from "react";
+import { SpeechBubble } from "@/types/game";
 
 export default function GameView() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -17,7 +18,6 @@ export default function GameView() {
     const VIEW_WIDTH = 26;
     const VIEW_HEIGHT = 15;
     const LERP = 0.2;
-    // On charge une police pixel art si possible, sinon monospace
     const FONT = '"Press Start 2P", monospace';
 
     canvas.width = VIEW_WIDTH * TILE_SIZE;
@@ -25,10 +25,11 @@ export default function GameView() {
     ctx.imageSmoothingEnabled = false;
 
     let frameId: number;
+    let time = 0;
 
     const render = () => {
-      const state = useGameStore.getState();
-      state.updateVisuals();
+      time++;
+      const state = useGameStore.getState() as any;
       const {
         player,
         map,
@@ -37,10 +38,12 @@ export default function GameView() {
         floatingTexts,
         screenShake,
         levelTheme,
+        projectiles,
+        attackAnims,
+        speechBubbles,
       } = state;
 
-      // 1. Fond (Background)
-      ctx.fillStyle = levelTheme?.wallSideColor || "#0a0a0a";
+      ctx.fillStyle = levelTheme?.wallSideColor || "#111";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       if (!map || !map.length) {
@@ -48,58 +51,48 @@ export default function GameView() {
         return;
       }
 
-      const all = [...enemies, { ...player, type: "player", id: "hero" }];
+      const allEntities = [
+        ...enemies,
+        { ...player, type: "player", id: "hero" },
+      ];
 
-      // 2. Interpolation des positions (Fluidité)
-      all.forEach((e: any) => {
+      allEntities.forEach((e: any) => {
         if (e.isHidden) return;
         const tx = e.position.x * TILE_SIZE;
         const ty = e.position.y * TILE_SIZE;
 
-        if (!visualState.current[e.id]) {
+        if (!visualState.current[e.id])
           visualState.current[e.id] = { x: tx, y: ty };
-        } else {
-          // Lerp plus rapide pour le joueur pour la réactivité, plus lent pour les ennemis pour l'effet
-          const speed = e.type === "player" ? 0.3 : 0.15;
+        else {
           visualState.current[e.id].x +=
-            (tx - visualState.current[e.id].x) * speed;
+            (tx - visualState.current[e.id].x) * 0.3;
           visualState.current[e.id].y +=
-            (ty - visualState.current[e.id].y) * speed;
+            (ty - visualState.current[e.id].y) * 0.3;
         }
       });
 
-      // 3. Caméra (Suit le joueur avec un effet ressort)
       const heroVis = visualState.current["hero"];
       if (heroVis) {
-        camera.current.x +=
-          (heroVis.x - canvas.width / 2 + TILE_SIZE / 2 - camera.current.x) *
-          0.1;
-        camera.current.y +=
-          (heroVis.y - canvas.height / 2 + TILE_SIZE / 2 - camera.current.y) *
-          0.1;
+        const targetCamX = heroVis.x - canvas.width / 2 + TILE_SIZE / 2;
+        const targetCamY = heroVis.y - canvas.height / 2 + TILE_SIZE / 2;
+        camera.current.x += (targetCamX - camera.current.x) * LERP;
+        camera.current.y += (targetCamY - camera.current.y) * LERP;
       }
 
-      // Screen Shake
-      let sx = 0,
-        sy = 0;
-      if (screenShake > 0) {
-        sx = (Math.random() - 0.5) * screenShake;
-        sy = (Math.random() - 0.5) * screenShake;
-      }
+      const shakeX = screenShake > 0 ? (Math.random() - 0.5) * screenShake : 0;
+      const shakeY = screenShake > 0 ? (Math.random() - 0.5) * screenShake : 0;
 
       ctx.save();
       ctx.translate(
-        -Math.floor(camera.current.x + sx),
-        -Math.floor(camera.current.y + sy)
+        -Math.floor(camera.current.x + shakeX),
+        -Math.floor(camera.current.y + shakeY)
       );
 
-      // Optimisation : Ne dessiner que les tuiles visibles
       const startCol = Math.floor(camera.current.x / TILE_SIZE);
-      const endCol = startCol + VIEW_WIDTH + 1;
+      const endCol = startCol + VIEW_WIDTH + 2;
       const startRow = Math.floor(camera.current.y / TILE_SIZE);
-      const endRow = startRow + VIEW_HEIGHT + 1;
+      const endRow = startRow + VIEW_HEIGHT + 2;
 
-      // 4. Dessin de la Map
       for (let y = startRow; y <= endRow; y++) {
         for (let x = startCol; x <= endCol; x++) {
           if (y >= 0 && y < map.length && x >= 0 && x < map[0].length) {
@@ -109,8 +102,7 @@ export default function GameView() {
               "idle",
               levelTheme
             );
-            if (sprite) {
-              // Légère variation de couleur pour le sol selon la profondeur
+            if (sprite)
               ctx.drawImage(
                 sprite,
                 x * TILE_SIZE,
@@ -118,43 +110,29 @@ export default function GameView() {
                 TILE_SIZE,
                 TILE_SIZE
               );
-            }
           }
         }
       }
 
-      // Tri pour la perspective (Y-sort)
-      all.sort(
+      allEntities.sort(
         (a, b) =>
           (visualState.current[a.id]?.y || 0) -
           (visualState.current[b.id]?.y || 0)
       );
 
-      // 5. Dessin des Entités
-      all.forEach((e: any) => {
+      allEntities.forEach((e: any) => {
         if (e.isHidden) return;
         const vis = visualState.current[e.id];
         if (!vis) return;
 
-        const isLiving = ["player", "enemy", "merchant"].includes(e.type);
-        const scale = e.visualScale || 1;
-        const drawSize = TILE_SIZE * scale;
-        const offset = (drawSize - TILE_SIZE) / 2;
-        const drawX = vis.x - offset;
-        const drawY = vis.y - offset;
-
-        // Bobbing effect (flottement) pour les vivants
-        const bob = isLiving ? Math.sin(Date.now() / 250) * 2 : 0;
-
-        // Ombre portée
-        if (isLiving || e.type === "chest") {
+        if (!e.isDead) {
           ctx.fillStyle = "rgba(0,0,0,0.4)";
           ctx.beginPath();
           ctx.ellipse(
             vis.x + TILE_SIZE / 2,
-            vis.y + TILE_SIZE - 2,
-            (TILE_SIZE / 3) * scale,
-            (TILE_SIZE / 6) * scale,
+            vis.y + TILE_SIZE - 4,
+            TILE_SIZE / 2.5,
+            TILE_SIZE / 5,
             0,
             0,
             Math.PI * 2
@@ -168,87 +146,249 @@ export default function GameView() {
           levelTheme
         );
 
+        const isStatic =
+          [
+            "chest",
+            "barrel",
+            "gold",
+            "potion",
+            "item",
+            "rubble",
+            "stairs",
+            "merchant",
+          ].includes(e.type) || e.isDead;
+        const bob = isStatic ? 0 : Math.sin(time / 10) * 2;
+
         if (sprite) {
-          // Effet pour les BOSS
-          if (e.isBoss) {
-            ctx.shadowColor = e.rarityColor || "#f00";
-            ctx.shadowBlur = 20;
-          }
-
-          ctx.drawImage(sprite, drawX, drawY + bob, drawSize, drawSize);
-          ctx.shadowBlur = 0; // Reset shadow
-        }
-
-        // --- DESSIN DE L'ARME (Utilise maintenant getSprite) ---
-        if (e.equipment?.weapon) {
-          const wt = e.equipment.weapon.weaponType.toUpperCase();
-          const weaponSprite = getSprite(`WEAPON_${wt}`);
-
-          if (weaponSprite) {
-            ctx.save();
-            ctx.translate(
-              drawX + drawSize / 2 + 10,
-              drawY + drawSize / 2 + bob
-            );
-            // Animation de flottement/rotation légère
-            ctx.rotate(Math.sin(Date.now() / 500) * 0.2);
-            ctx.drawImage(weaponSprite, -12, -12, 24, 24);
-            ctx.restore();
+          if (e.isDead && e.type !== "rubble") {
+            ctx.globalAlpha = 0.5;
+            ctx.drawImage(sprite, vis.x, vis.y + 10, TILE_SIZE, TILE_SIZE);
+            ctx.globalAlpha = 1;
+          } else {
+            ctx.drawImage(sprite, vis.x, vis.y + bob, TILE_SIZE, TILE_SIZE);
           }
         }
 
-        // --- BARRES DE VIE & NOMS ---
-        if (e.type === "enemy" || e.type === "player") {
+        if (e.type === "enemy" && e.isHostile && !e.isBoss && !e.isDead) {
+          ctx.font = `8px ${FONT}`;
+          ctx.fillStyle = "#fff";
+          ctx.textAlign = "center";
+          ctx.shadowColor = "#000";
+          ctx.shadowBlur = 3;
+          ctx.strokeText(e.name, vis.x + TILE_SIZE / 2, vis.y - 12);
+          ctx.fillText(e.name, vis.x + TILE_SIZE / 2, vis.y - 12);
+          ctx.shadowBlur = 0;
+
           const hpPct = e.stats.hp / e.stats.maxHp;
-          const uiY = drawY - 12; // Position au dessus de la tête
+          const barW = 32;
+          const bx = vis.x + (TILE_SIZE - barW) / 2;
+          const by = vis.y - 8;
 
-          // Barre de vie (Fond)
-          ctx.fillStyle = "#111";
-          ctx.fillRect(vis.x + TILE_SIZE / 2 - 16, uiY, 32, 5);
+          ctx.fillStyle = "#000";
+          ctx.fillRect(bx - 1, by - 1, barW + 2, 6);
+          ctx.fillStyle = "#555";
+          ctx.fillRect(bx, by, barW, 4);
+          ctx.fillStyle =
+            hpPct > 0.5 ? "#22c55e" : hpPct > 0.25 ? "#facc15" : "#ef4444";
+          ctx.fillRect(bx, by, barW * hpPct, 4);
 
-          // Barre de vie (Remplissage)
-          ctx.fillStyle = e.type === "player" ? "#22c55e" : "#ef4444";
-          ctx.fillRect(vis.x + TILE_SIZE / 2 - 15, uiY + 1, 30 * hpPct, 3);
-
-          // Nom de l'ennemi (CORRECTION ICI POUR LA COULEUR)
-          if (e.type === "enemy") {
-            ctx.font = `bold 8px ${FONT}`;
-            ctx.textAlign = "center";
-            ctx.textBaseline = "bottom";
-
-            // Contour noir pour la lisibilité
-            ctx.strokeStyle = "#000";
-            ctx.lineWidth = 3;
-            ctx.strokeText(e.name, vis.x + TILE_SIZE / 2, uiY - 2);
-
-            // Couleur selon la rareté
-            ctx.fillStyle = e.rarityColor || "#ffffff";
-            ctx.fillText(e.name, vis.x + TILE_SIZE / 2, uiY - 2);
+          if (e.statusEffects && e.statusEffects.length > 0) {
+            e.statusEffects.forEach((s: string, i: number) => {
+              ctx.fillStyle =
+                s === "freeze" ? "#0ea5e9" : s === "burn" ? "#f97316" : "#fff";
+              ctx.beginPath();
+              ctx.arc(bx + i * 8, by - 6, 3, 0, Math.PI * 2);
+              ctx.fill();
+            });
           }
+        }
+
+        if (e.type === "merchant") {
+          ctx.font = `10px ${FONT}`;
+          ctx.fillStyle = "#fbbf24";
+          ctx.textAlign = "center";
+          ctx.shadowColor = "#000";
+          ctx.shadowBlur = 3;
+          ctx.strokeText(e.name, vis.x + TILE_SIZE / 2, vis.y - 15);
+          ctx.fillText(e.name, vis.x + TILE_SIZE / 2, vis.y - 15);
+          ctx.shadowBlur = 0;
         }
       });
 
-      // 6. Particules
-      particles.forEach((p) => {
+      if (speechBubbles) {
+        speechBubbles.forEach((bubble: SpeechBubble) => {
+          const target = visualState.current[bubble.targetId];
+          if (target) {
+            const bx = target.x + TILE_SIZE / 2;
+            const by = target.y - 20;
+
+            ctx.font = `10px ${FONT}`;
+            const textMetrics = ctx.measureText(bubble.text);
+            const padding = 10;
+            const w = textMetrics.width + padding * 2;
+            const h = 24;
+
+            ctx.fillStyle = "#fff";
+            if (bubble.color !== "#fff") ctx.fillStyle = "#111";
+
+            ctx.beginPath();
+            ctx.roundRect(bx - w / 2, by - h, w, h, 8);
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.moveTo(bx, by);
+            ctx.lineTo(bx - 5, by - h + 2);
+            ctx.lineTo(bx + 5, by - h + 2);
+            ctx.fill();
+
+            ctx.strokeStyle = bubble.color;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.roundRect(bx - w / 2, by - h, w, h, 8);
+            ctx.stroke();
+
+            ctx.fillStyle = bubble.color === "#fff" ? "#000" : bubble.color;
+            ctx.textAlign = "center";
+            ctx.fillText(bubble.text, bx, by - 8);
+          }
+        });
+      }
+
+      if (attackAnims) {
+        attackAnims.forEach((anim: any) => {
+          const cx = anim.x * TILE_SIZE + TILE_SIZE / 2;
+          const cy = anim.y * TILE_SIZE + TILE_SIZE / 2;
+
+          ctx.save();
+          ctx.translate(cx, cy);
+
+          if (anim.type === "cast_enemy" || anim.type === "cast") {
+            ctx.strokeStyle = anim.type === "cast" ? "#3b82f6" : "#ef4444";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(0, 0, anim.progress * 40, 0, Math.PI * 2);
+            ctx.stroke();
+          } else {
+            const angle =
+              anim.dir === "up"
+                ? -Math.PI / 2
+                : anim.dir === "down"
+                ? Math.PI / 2
+                : anim.dir === "left"
+                ? Math.PI
+                : 0;
+            ctx.rotate(angle);
+            ctx.beginPath();
+            ctx.arc(0, 0, 30, -0.5, 0.5);
+            ctx.strokeStyle = "#fff";
+            ctx.lineWidth = 30 * (1 - anim.progress);
+            ctx.stroke();
+          }
+          ctx.restore();
+        });
+      }
+
+      if (projectiles) {
+        ctx.globalCompositeOperation = "lighter";
+        projectiles.forEach((p: any) => {
+          const px =
+            (p.startX + (p.targetX - p.startX) * p.progress) * TILE_SIZE +
+            TILE_SIZE / 2;
+          const py =
+            (p.startY + (p.targetY - p.startY) * p.progress) * TILE_SIZE +
+            TILE_SIZE / 2;
+
+          if (p.trail && p.trail.length > 1) {
+            ctx.beginPath();
+            ctx.moveTo(
+              p.trail[0].x * TILE_SIZE + TILE_SIZE / 2,
+              p.trail[0].y * TILE_SIZE + TILE_SIZE / 2
+            );
+            for (let i = 1; i < p.trail.length; i++) {
+              ctx.lineTo(
+                p.trail[i].x * TILE_SIZE + TILE_SIZE / 2,
+                p.trail[i].y * TILE_SIZE + TILE_SIZE / 2
+              );
+            }
+            ctx.strokeStyle = p.color;
+            ctx.lineWidth = p.damage > 20 ? 4 : 2;
+            ctx.globalAlpha = 0.6;
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+          }
+
+          ctx.save();
+          ctx.translate(px, py);
+          const angle = Math.atan2(p.targetY - p.startY, p.targetX - p.startX);
+          ctx.rotate(angle);
+
+          if (p.projectileType === "arrow") {
+            ctx.fillStyle = "#fff";
+            ctx.fillRect(-8, -1, 16, 2);
+            ctx.fillStyle = p.color;
+            ctx.beginPath();
+            ctx.moveTo(8, -3);
+            ctx.lineTo(12, 0);
+            ctx.lineTo(8, 3);
+            ctx.fill();
+          } else {
+            ctx.shadowColor = p.color;
+            ctx.shadowBlur = 10;
+            ctx.fillStyle = "#fff";
+            ctx.beginPath();
+            ctx.arc(0, 0, 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = p.color;
+            ctx.beginPath();
+            ctx.arc(0, 0, 2, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.restore();
+        });
+        ctx.globalCompositeOperation = "source-over";
+      }
+
+      particles.forEach((p: any) => {
+        ctx.globalAlpha = Math.max(0, p.life);
         ctx.fillStyle = p.color;
-        ctx.globalAlpha = p.life / p.maxLife;
-        ctx.fillRect(p.x, p.y, p.size, p.size);
+        const size = p.size || 3;
+        ctx.fillRect(p.x * TILE_SIZE, p.y * TILE_SIZE, size, size);
       });
       ctx.globalAlpha = 1;
 
-      // 7. Textes Flottants (Dégâts, XP, etc.)
-      floatingTexts.forEach((t) => {
-        ctx.font = `bold 10px ${FONT}`;
-        ctx.fillStyle = t.color;
-        ctx.textAlign = "center";
+      if (floatingTexts) {
+        floatingTexts.forEach((t: any) => {
+          if (t.text === "EXPLOSION_VISUAL") {
+            const radius = parseFloat(t.textColor || "2") * TILE_SIZE;
+            ctx.strokeStyle = "#f97316";
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.arc(
+              t.x * TILE_SIZE + TILE_SIZE / 2,
+              t.y * TILE_SIZE + TILE_SIZE / 2,
+              radius * (1 - t.life),
+              0,
+              Math.PI * 2
+            );
+            ctx.stroke();
+          } else {
+            const yOffset = (1 - t.life) * 30;
+            ctx.font = t.isCrit ? `bold 20px ${FONT}` : `12px ${FONT}`;
+            ctx.textAlign = "center";
+            ctx.strokeStyle = "#000";
+            ctx.lineWidth = 3;
+            const txt = t.text;
+            const tx = t.x * TILE_SIZE + TILE_SIZE / 2;
+            const ty = t.y * TILE_SIZE - yOffset;
 
-        ctx.shadowColor = "#000";
-        ctx.shadowBlur = 0;
-        ctx.strokeStyle = "#000";
-        ctx.lineWidth = 3;
-        ctx.strokeText(t.text, t.x, t.y);
-        ctx.fillText(t.text, t.x, t.y);
-      });
+            ctx.globalAlpha = t.life;
+            ctx.strokeText(txt, tx, ty);
+            ctx.fillStyle = t.color;
+            ctx.fillText(txt, tx, ty);
+            ctx.globalAlpha = 1;
+          }
+        });
+      }
 
       ctx.restore();
       frameId = requestAnimationFrame(render);

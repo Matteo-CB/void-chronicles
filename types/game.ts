@@ -1,25 +1,22 @@
-export type Position = { x: number; y: number };
+// --- TYPES DE BASE ---
 export type Direction = "up" | "down" | "left" | "right";
-export type EntityType =
-  | "player"
-  | "enemy"
-  | "chest"
-  | "gold"
-  | "stairs"
-  | "potion"
-  | "shrine"
-  | "merchant"
-  | "decoration";
-export type Rarity = "common" | "rare" | "epic" | "legendary" | "mythic";
-export type ItemType =
-  | "weapon"
-  | "armor"
-  | "accessory"
-  | "consumable"
-  | "spellbook";
-export type WeaponType = "sword" | "bow" | "staff" | "pistol";
+
+export type GameState =
+  | "start"
+  | "playing"
+  | "inventory"
+  | "shop"
+  | "gameover"
+  | "dialogue"
+  | "spellbook"
+  | "levelup";
+
+export interface Position {
+  x: number;
+  y: number;
+}
+
 export type BiomeType = "cave" | "ruins" | "volcano" | "crystal";
-export type InputMethod = "keyboard" | "gamepad";
 
 export interface Stats {
   hp: number;
@@ -30,35 +27,99 @@ export interface Stats {
   defense: number;
   speed: number;
   xpValue: number;
+  critChance: number;
+  critDamage: number;
+  dodgeChance: number;
+  lifesteal: number;
+  armorPen: number;
+  cooldownReduction: number;
+  spellPower: number;
+  strength: number;
+  endurance: number;
+  agility: number;
+  wisdom: number;
+  willpower: number;
+  luck: number;
+  accuracy: number;
+  arcane: number;
 }
 
-export interface Spell {
+// --- ENTITÉS & OBJETS ---
+
+export type ItemType =
+  | "weapon"
+  | "armor"
+  | "potion"
+  | "gold"
+  | "item"
+  | "scroll"
+  | "accessory"
+  | "consumable"
+  | "spellbook";
+export type Rarity = "common" | "rare" | "epic" | "legendary" | "mythic";
+export type WeaponType =
+  | "sword"
+  | "bow"
+  | "pistol"
+  | "staff"
+  | "dagger"
+  | "axe"
+  | "spear"
+  | "wand";
+
+export interface Entity {
   id: string;
+  type: string;
   name: string;
-  cost: number;
-  description: string;
-  cooldown: number;
-  currentCooldown: number;
-  color: string;
-  range: number;
-  damage?: number;
-  effect?: "heal" | "damage" | "stun" | "buff";
+  position: Position;
+  spriteKey: string;
+  stats: Stats;
+  isHostile: boolean;
+  isDead?: boolean;
+  isHidden?: boolean;
+  visualScale: number;
+
+  // IA & Combat
+  aiBehavior?: string;
+  range?: number;
+  projectileColor?: string;
+  moveTimer?: number;
+  statusEffects?: string[];
+  knockbackX?: number;
+  knockbackY?: number;
+
+  // Spécifique Shop/Coffre
+  isOpen?: boolean;
+  shopInventory?: Item[];
+  value?: number;
 }
 
 export interface Item {
   id: string;
   name: string;
   type: ItemType;
-  weaponType?: WeaponType;
-  rarity: Rarity;
-  value: number;
-  statModifier?: Partial<Stats>;
-  description: string;
-  visualColor: string;
+  spriteKey: string;
+  value?: number;
   stats?: Partial<Stats>;
-  color: string;
-  spellId?: string;
+  description?: string;
+  level?: number;
+  color?: string;
+  visualColor?: string;
+  rarity?: Rarity;
+
+  // Spécifique Arme
+  weaponType?: WeaponType;
   range?: number;
+  onHitEffect?: { type: string; chance: number; value: number };
+  applyStatus?: {
+    type: string;
+    chance: number;
+    duration: number;
+    power: number;
+  };
+
+  // Spécifique Grimoire
+  spellId?: string;
 }
 
 export interface Equipment {
@@ -67,103 +128,122 @@ export interface Equipment {
   accessory: Item | null;
 }
 
-export interface Entity {
-  id: string;
-  type: EntityType;
-  name: string;
-  position: Position;
-  direction: Direction;
+// --- SYSTÈME DE PROGRESSION ---
+
+export interface Player {
+  // Subset de PlayerState utilisé pour les effets (perks/masteries)
   stats: Stats;
-  spriteKey: string;
-  isHostile: boolean;
-  equipment?: Equipment;
-  spells?: Spell[];
-  lootTable?: string[];
-  isOpen?: boolean;
-  value?: number;
-  aiBehavior?: "aggressive" | "passive" | "guardian" | "caster" | "archer";
-  shopInventory?: Item[];
-  isHidden?: boolean;
-  visualScale?: number;
-  isBoss?: boolean;
-  bossSignatureMove?: string;
-  rarityColor?: string;
-  buffs?: string[];
+  xp: number;
+  // On peut ajouter d'autres champs si nécessaire
+}
+
+export interface Perk {
+  id: string;
+  name: string;
+  description: string;
+  rarity: "common" | "rare" | "epic" | "legendary";
+  icon: string;
+  effect: (p: Player) => void;
+}
+
+export interface Mastery {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  cost: number;
+  type: "passive" | "consumable";
+  maxRank: number;
+  currentRank: number;
+  effect: (p: Player) => void;
+}
+
+// --- COMBAT & MONDE ---
+
+export interface Spell {
+  id: string;
+  name: string;
+  cost: number;
+  cooldown: number;
+  currentCooldown: number;
+  damage: number;
+  description: string;
+  effect?: string;
+  color?: string;
+}
+
+export interface Projectile {
+  id: string;
+  startX: number;
+  startY: number;
+  targetX: number;
+  targetY: number;
+  damage: number;
+  color: string;
+  progress: number;
+  speed: number;
+  trail: Position[];
+  projectileType: string;
+  isEnemy: boolean;
+  critChance?: number;
+  critMult?: number;
+  knockback?: number;
+  piercing?: number;
+  hitList?: string[];
+  explodeOnHit?: boolean;
+  radius?: number;
+  homing?: number;
+  statusEffect?: string;
 }
 
 export interface Particle {
-  id: string;
   x: number;
   y: number;
   color: string;
-  size: number;
   life: number;
-  maxLife: number;
+  size: number;
   vx: number;
   vy: number;
 }
 
 export interface FloatingText {
-  id: string;
+  id: number;
   x: number;
   y: number;
   text: string;
   color: string;
   life: number;
-  vy: number;
+  isCrit: boolean;
+}
+
+export interface SpeechBubble {
+  id: string;
+  targetId: string;
+  text: string;
+  color: string;
+  duration: number;
+  createdAt: number;
 }
 
 export interface Tile {
   x: number;
   y: number;
-  type: "floor" | "wall" | "void";
-  variant: number;
-  structure?: Entity;
+  type: "floor" | "wall";
+  visibility: "visible" | "hidden" | "fog";
 }
 
 export interface LevelTheme {
-  name: string;
   floorColor: string;
   wallColor: string;
   wallSideColor: string;
+  name: string;
 }
 
-export interface GameState {
-  map: Tile[][];
-  levelTheme: LevelTheme;
-  player: Entity & {
-    level: number;
-    xp: number;
-    xpToNext: number;
-    gold: number;
-    equipment: Equipment;
-    spells: Spell[];
-    learnedSpells: string[];
-    equippedSpells: string[];
-  };
-  enemies: Entity[];
-  inventory: Item[];
-  log: string[];
-  turn: number;
-  gameState:
-    | "playing"
-    | "menu"
-    | "dialogue"
-    | "levelup"
-    | "gameover"
-    | "inventory"
-    | "shop"
-    | "spellbook";
-  currentDialogue: string | null;
-  dungeonLevel: number;
-  particles: Particle[];
-  floatingTexts: FloatingText[];
-  screenShake: number;
-  currentMerchantId: string | null;
-  showResetConfirmation: boolean;
-  isLoading: boolean;
-  currentBiomeId: string;
-  selectedInventoryIndex: number;
-  selectedShopIndex: number;
-  inputMethod: InputMethod;
+export interface AttackAnim {
+  id: string;
+  x: number;
+  y: number;
+  dir: Direction;
+  type: string;
+  progress: number;
 }

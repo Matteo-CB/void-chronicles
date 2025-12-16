@@ -1,4 +1,3 @@
-// Palette de couleurs globale
 export const P = {
   void: "#09090b",
   shadow: "rgba(0,0,0,0.5)",
@@ -31,7 +30,6 @@ export const P = {
 
 export type DrawContext = CanvasRenderingContext2D;
 
-// Helper pour dessiner un rectangle
 export const r = (
   ctx: DrawContext,
   x: number,
@@ -44,7 +42,6 @@ export const r = (
   ctx.fillRect(Math.floor(x), Math.floor(y), Math.floor(w), Math.floor(h));
 };
 
-// Helper pour dessiner un pixel
 export const p = (ctx: DrawContext, x: number, y: number, c: string) => {
   r(ctx, x, y, 1, 1, c);
 };

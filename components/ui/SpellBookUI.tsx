@@ -1,111 +1,143 @@
 import useGameStore from "@/store/gameStore";
+import { useEffect, useRef } from "react";
+import { Zap } from "lucide-react";
 
 export default function SpellBookUI() {
-  const { player, equipSpell, inputMethod } = useGameStore();
+  const { player, menuSelectionIndex, inputMethod } = useGameStore(
+    (state: any) => state
+  );
+  const listRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (listRef.current) {
+      const el = listRef.current.children[menuSelectionIndex] as HTMLElement;
+      if (el) el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+  }, [menuSelectionIndex]);
+
+  const confirmKey = inputMethod === "gamepad" ? "[A]" : "[ENTRÉE]";
 
   return (
-    <div className="absolute inset-0 bg-black/90 flex items-center justify-center z-50 font-pixel">
-      <div className="bg-gray-900 border-4 border-purple-600 p-6 w-full max-w-2xl shadow-2xl relative">
-        <h2 className="text-2xl text-purple-400 mb-6 text-center border-b border-purple-800 pb-4">
-          GRIMOIRE DES SORTS
-        </h2>
+    <div className="absolute inset-0 bg-black/95 flex items-center justify-center z-50 backdrop-blur-xl">
+      <div className="w-[1000px] h-[600px] flex border border-purple-900/50 shadow-[0_0_100px_rgba(88,28,135,0.2)] bg-zinc-950">
+        {/* Liste des Sorts */}
+        <div className="w-1/2 border-r border-zinc-800 flex flex-col">
+          <div className="p-6 border-b border-zinc-800 bg-purple-950/10">
+            <h2 className="text-xl text-purple-400 font-bold uppercase tracking-widest">
+              Grimoire
+            </h2>
+            <p className="text-xs text-zinc-500 mt-1">
+              Savoirs interdits accumulés
+            </p>
+          </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-black/50 p-4 border border-gray-700 h-96 overflow-y-auto">
-            <h3 className="text-white mb-2 text-sm">Sorts Connus</h3>
-            <div className="space-y-2">
-              {player.spells.map((spell) => (
+          <div
+            ref={listRef}
+            className="flex-1 overflow-y-auto custom-scroll p-4 space-y-2"
+          >
+            {player.spells.map((spell: any, idx: number) => {
+              const isSelected = idx === menuSelectionIndex;
+              const isEquipped = player.equippedSpells.includes(spell.id);
+
+              return (
                 <div
                   key={spell.id}
-                  className="flex flex-col bg-gray-800 p-2 border border-gray-600"
+                  className={`p-4 border transition-all relative ${
+                    isSelected
+                      ? "bg-zinc-900 border-purple-500 shadow-lg scale-[1.02] z-10"
+                      : "bg-black border-zinc-800 opacity-80"
+                  }`}
                 >
-                  <div className="flex justify-between items-center">
-                    <span style={{ color: spell.color }} className="font-bold">
+                  <div className="flex justify-between items-center mb-1">
+                    <span
+                      className="font-bold text-sm"
+                      style={{ color: spell.color }}
+                    >
                       {spell.name}
                     </span>
-                    <span className="text-blue-300 text-xs">
+                    <span className="text-[10px] text-blue-400 bg-blue-950/30 px-2 py-0.5 rounded border border-blue-900">
                       {spell.cost} MP
                     </span>
                   </div>
-                  <p className="text-gray-400 text-[10px] italic my-1">
+                  <p className="text-[10px] text-zinc-400 mb-2">
                     {spell.description}
                   </p>
 
-                  <div className="flex gap-1 mt-2">
-                    <span className="text-gray-500 text-[10px] mr-2">
-                      Équiper en:
-                    </span>
-                    {[0, 1, 2].map((slot) => (
-                      <button
-                        key={slot}
-                        onClick={() => equipSpell(spell.id, slot)}
-                        className={`px-2 py-1 text-[10px] border ${
-                          player.equippedSpells[slot] === spell.id
-                            ? "bg-green-600 border-green-400 text-white"
-                            : "bg-gray-700 border-gray-500 hover:bg-gray-600 text-gray-300"
-                        }`}
-                      >
-                        Slot {slot + 1}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-              {player.spells.length === 0 && (
-                <p className="text-gray-500 text-center mt-10">
-                  Aucun sort appris. Trouvez des grimoires !
-                </p>
-              )}
-            </div>
-          </div>
-
-          <div className="flex flex-col items-center justify-center gap-4 bg-black/50 p-4 border border-gray-700">
-            <h3 className="text-white text-sm mb-4">Sorts Actifs</h3>
-            <div className="flex flex-col gap-4 w-full">
-              {[0, 1, 2].map((slot) => {
-                const spellId = player.equippedSpells[slot];
-                const spell = player.spells.find((s) => s.id === spellId);
-                return (
-                  <div
-                    key={slot}
-                    className="flex items-center gap-4 bg-gray-800 p-3 border border-gray-600"
-                  >
-                    <div className="w-8 h-8 flex items-center justify-center bg-black border border-gray-500 text-white font-bold">
-                      {slot + 1}
+                  {isSelected && (
+                    <div className="text-[10px] text-zinc-500 mt-2 flex items-center gap-2">
+                      <span className="animate-pulse text-purple-400 font-bold">
+                        ► SÉLECTIONNÉ
+                      </span>
+                      {isEquipped && (
+                        <span className="text-green-500">(Déjà Équipé)</span>
+                      )}
                     </div>
-                    {spell ? (
-                      <div className="flex-1">
-                        <p
-                          style={{ color: spell.color }}
-                          className="font-bold text-sm"
-                        >
-                          {spell.name}
-                        </p>
-                        <p className="text-xs text-gray-400">
-                          Dégâts: {spell.damage || 0} | Portée: {spell.range}
-                        </p>
-                      </div>
-                    ) : (
-                      <p className="text-gray-600 italic text-sm">Vide</p>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                  )}
+                </div>
+              );
+            })}
+            {player.spells.length === 0 && (
+              <div className="h-full flex items-center justify-center text-zinc-600 text-xs italic">
+                Vous ne connaissez aucun sort pour l'instant.
+              </div>
+            )}
           </div>
         </div>
 
-        <button
-          onClick={() => useGameStore.setState({ gameState: "playing" })}
-          className="mt-6 w-full py-3 bg-red-600 text-white hover:bg-red-500 border-2 border-red-800 font-bold flex items-center justify-center gap-2"
-        >
-          FERMER LE GRIMOIRE{" "}
-          {inputMethod === "gamepad" && (
-            <span className="w-5 h-5 bg-red-800 rounded-full flex items-center justify-center text-[10px] border border-red-400">
-              B
-            </span>
-          )}
-        </button>
+        {/* Slots Équipés */}
+        <div className="w-1/2 bg-black/40 flex flex-col p-8 items-center justify-center gap-8">
+          <h3 className="text-sm text-zinc-400 uppercase tracking-[0.3em]">
+            Sorts Mémorisés
+          </h3>
+          <div className="flex flex-col gap-6 w-full max-w-xs">
+            {[0, 1, 2].map((slot) => {
+              const spellId = player.equippedSpells[slot];
+              const spell = player.spells.find((s: any) => s.id === spellId);
+
+              return (
+                <div key={slot} className="flex items-center gap-4">
+                  <div className="w-12 h-12 flex items-center justify-center border-2 border-zinc-700 bg-zinc-900 text-zinc-500 font-bold text-lg">
+                    {inputMethod === "gamepad"
+                      ? slot === 0
+                        ? "LB"
+                        : slot === 1
+                        ? "RB"
+                        : "RT"
+                      : slot + 1}
+                  </div>
+                  <div
+                    className={`flex-1 p-3 border ${
+                      spell
+                        ? "border-zinc-700 bg-zinc-900"
+                        : "border-zinc-800 bg-black dashed"
+                    }`}
+                  >
+                    {spell ? (
+                      <div className="flex items-center gap-3">
+                        <Zap size={16} style={{ color: spell.color }} />
+                        <span className="text-sm font-bold text-zinc-200">
+                          {spell.name}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-zinc-700 uppercase">
+                        Emplacement Vide
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="mt-auto p-4 bg-zinc-900 border border-zinc-800 text-center w-full">
+            <p className="text-xs text-zinc-400 leading-relaxed">
+              Sélectionnez un sort dans la liste et appuyez sur{" "}
+              <span className="text-white font-bold">{confirmKey}</span> pour
+              l'équiper dans le premier emplacement libre.
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );
