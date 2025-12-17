@@ -16,6 +16,11 @@ export const createCombatSlice: StateCreator<GameStore, [], [], any> = (
     combatLoopLogic(set, get, dt);
   },
 
+  playerAttack: () => {
+    performAttackAction(set, get, "light");
+  },
+
+  // Cette fonction est maintenant appelée par les hooks avec le bon type
   performAttack: (type: "light" | "heavy") => {
     performAttackAction(set, get, type);
   },

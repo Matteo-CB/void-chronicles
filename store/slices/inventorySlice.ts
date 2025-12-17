@@ -42,7 +42,6 @@ export const createInventorySlice: StateCreator<
       currentMerchantId,
       player,
     } = get();
-
     let newIndex = menuSelectionIndex;
     let maxIndex = 0;
     let cols = 1;
@@ -60,9 +59,7 @@ export const createInventorySlice: StateCreator<
       maxIndex = (player.spells.length || 1) - 1;
       cols = 1;
     } else if (gameState === "levelup") {
-      const statsCount = 5;
-      const masteriesCount = player.masteries?.length || 0;
-      maxIndex = statsCount + masteriesCount - 1;
+      maxIndex = 4 + (player.masteries?.length || 0) - 1;
       cols = 1;
     }
 
@@ -97,11 +94,11 @@ export const createInventorySlice: StateCreator<
       const item = inventory[menuSelectionIndex];
       if (!item) return;
 
-      // Correction: Vérification large des types consommables
       if (
         item.type === "potion" ||
         item.type === "consumable" ||
-        (item as any).type === "scroll"
+        (item as any).type === "scroll" ||
+        item.type === "spellbook"
       ) {
         useItem(item.id);
       } else {
@@ -135,7 +132,7 @@ export const createInventorySlice: StateCreator<
     }
   },
 
-  addItem: (item: Item) => {
+  addItem: (item: Item): boolean => {
     const { player, inventory, addLog } = get();
 
     if (item.type === "accessory") {
@@ -143,32 +140,9 @@ export const createInventorySlice: StateCreator<
         inventory.some((i) => i && i.name === item.name) ||
         player.equipment.accessory?.name === item.name;
       if (alreadyHas) {
-        addLog("Vous possédez déjà cet accessoire !");
-        return;
+        addLog("Accessoire déjà possédé !");
+        return false;
       }
-    }
-
-    if ((item as any).type === "spellbook" && (item as any).spellId) {
-      const spellId = (item as any).spellId;
-      if (player.spells.find((s: any) => s.id === spellId)) {
-        addLog("Sort déjà connu !");
-        return;
-      }
-      const spellData = SPELL_DB[spellId as keyof typeof SPELL_DB];
-      if (spellData) {
-        let newEquipped = [...player.equippedSpells];
-        const emptyIdx = newEquipped.indexOf("");
-        if (emptyIdx !== -1) newEquipped[emptyIdx] = spellData.id;
-        set((s) => ({
-          player: {
-            ...s.player,
-            spells: [...s.player.spells, spellData],
-            equippedSpells: newEquipped,
-          },
-        }));
-        addLog(`Appris : ${spellData.name}`);
-      }
-      return;
     }
 
     const firstEmptyIndex = inventory.findIndex((i) => i === null);
@@ -177,18 +151,20 @@ export const createInventorySlice: StateCreator<
       newInv[firstEmptyIndex] = item;
       set({ inventory: newInv });
       addLog(`Obtenu : ${item.name}`);
+      return true;
     } else if (inventory.length < 30) {
       set({ inventory: [...inventory, item] });
       addLog(`Obtenu : ${item.name}`);
+      return true;
     } else {
       addLog("Inventaire plein !");
+      return false;
     }
   },
 
   unequipItem: (slot: string) => {
     const { player, inventory, calculateStats, addLog } = get();
     if (slot !== "weapon" && slot !== "armor" && slot !== "accessory") return;
-
     const itemToUnequip =
       player.equipment[slot as keyof typeof player.equipment];
     if (!itemToUnequip) return;
@@ -214,8 +190,6 @@ export const createInventorySlice: StateCreator<
 
   equipItem: (item: Item) => {
     const { player, inventory, calculateStats, addLog } = get();
-
-    // On trouve l'index exact de l'objet pour l'enlever proprement
     const itemIndex = inventory.findIndex((i) => i && i.id === item.id);
     const newInventory = [...inventory];
     if (itemIndex !== -1) newInventory[itemIndex] = null;
@@ -232,13 +206,10 @@ export const createInventorySlice: StateCreator<
     } else if (item.type === "accessory") {
       oldItem = newEquipment.accessory;
       newEquipment.accessory = item;
-    } else {
-      return;
-    }
+    } else return;
 
-    if (oldItem && itemIndex !== -1) {
-      newInventory[itemIndex] = oldItem;
-    } else if (oldItem) {
+    if (oldItem && itemIndex !== -1) newInventory[itemIndex] = oldItem;
+    else if (oldItem) {
       const empty = newInventory.findIndex((i) => i === null);
       if (empty !== -1) newInventory[empty] = oldItem;
       else newInventory.push(oldItem);
@@ -254,33 +225,74 @@ export const createInventorySlice: StateCreator<
 
   useItem: (itemId: string) => {
     const { player, inventory, addEffects, addLog } = get();
-    // On trouve l'index exact pour ne supprimer que CELUI-LA
     const itemIndex = inventory.findIndex((i) => i && i.id === itemId);
     const item = inventory[itemIndex];
 
     if (!item) return;
 
-    const heal = item.stats?.hp || 50;
-    const newHp = Math.min(player.stats.maxHp, player.stats.hp + heal);
+    // LOGIQUE GRIMOIRE
+    if (item.type === "spellbook" && item.spellId) {
+      const spellData = SPELL_DB[item.spellId as keyof typeof SPELL_DB];
+      if (!spellData) return;
+      if (player.spells.find((s: any) => s.id === spellData.id)) {
+        addLog("Sort déjà connu !");
+        return;
+      }
+      let newEquipped = [...player.equippedSpells];
+      const emptyIdx = newEquipped.indexOf("");
+      if (emptyIdx !== -1) newEquipped[emptyIdx] = spellData.id;
 
-    const newInventory = [...inventory];
-    newInventory[itemIndex] = null; // On vide le slot utilisé
+      set({
+        player: {
+          ...player,
+          spells: [...player.spells, spellData],
+          equippedSpells: newEquipped,
+        },
+      });
+      addLog(`Appris : ${spellData.name}`);
+      addEffects(
+        player.position.x,
+        player.position.y,
+        "#a855f7",
+        30,
+        "APPRIS !",
+        "#fff"
+      );
 
-    set({
-      player: { ...player, stats: { ...player.stats, hp: newHp } },
-      inventory: newInventory,
-    });
+      const newInventory = [...inventory];
+      newInventory[itemIndex] = null;
+      set({ inventory: newInventory });
+      return;
+    }
 
-    addLog(`Utilisé : ${item.name} (+${heal} PV)`);
-    // Effet visuel
-    addEffects(
-      player.position.x,
-      player.position.y,
-      "#f43f5e",
-      20,
-      `+${heal}`,
-      "#fff"
-    );
+    // LOGIQUE POTION / CONSOMMABLE
+    // On force une valeur si c'est une potion et qu'elle n'a pas de stats définies
+    let heal = 0;
+    if (item.stats && item.stats.hp) heal = item.stats.hp;
+    else if (item.type === "potion" || item.type === "consumable") heal = 50;
+
+    if (heal > 0) {
+      const newHp = Math.min(player.stats.maxHp, player.stats.hp + heal);
+      const newInventory = [...inventory];
+      newInventory[itemIndex] = null;
+
+      set({
+        player: { ...player, stats: { ...player.stats, hp: newHp } },
+        inventory: newInventory,
+      });
+      addLog(`Utilisé : ${item.name} (+${heal} PV)`);
+      addEffects(
+        player.position.x,
+        player.position.y,
+        "#f43f5e",
+        20,
+        `+${heal}`,
+        "#fff"
+      );
+    } else {
+      // Fallback si l'objet n'a pas d'effet connu
+      addLog("Impossible d'utiliser cet objet.");
+    }
   },
 
   buyItem: (item: Item) => {
@@ -290,27 +302,25 @@ export const createInventorySlice: StateCreator<
       addLog("Pas assez d'or !");
       return;
     }
-
     const merchant = enemies.find((e) => e.id === currentMerchantId) as
       | MerchantEntity
       | undefined;
-
     if (merchant && merchant.shopInventory) {
-      const newInventory = merchant.shopInventory.filter(
-        (i) => i.id !== item.id
-      );
-      const newEnemies = enemies.map((e) =>
-        e.id === currentMerchantId
-          ? { ...merchant, shopInventory: newInventory }
-          : e
-      );
-
-      set({
-        enemies: newEnemies,
-        player: { ...player, gold: player.gold - cost },
-      });
-      addLog(`Acheté : ${item.name}`);
-      addItem(item);
+      if (addItem(item)) {
+        const newInventory = merchant.shopInventory.filter(
+          (i) => i.id !== item.id
+        );
+        const newEnemies = enemies.map((e) =>
+          e.id === currentMerchantId
+            ? { ...merchant, shopInventory: newInventory }
+            : e
+        );
+        set({
+          enemies: newEnemies,
+          player: { ...player, gold: player.gold - cost },
+        });
+        addLog(`Acheté : ${item.name}`);
+      }
     }
   },
 

@@ -1,6 +1,6 @@
 import { StateCreator } from "zustand";
 import { GameStore } from "../types";
-import { SpeechBubble } from "@/types/game";
+import { SpeechBubble, GameState } from "@/types/game";
 
 export const createUISlice: StateCreator<
   GameStore,
@@ -10,13 +10,14 @@ export const createUISlice: StateCreator<
     GameStore,
     | "setInputMethod"
     | "advanceDialogue"
-    | "startCutscene" // NOUVEAU
-    | "advanceCutscene" // NOUVEAU
+    | "startCutscene"
+    | "advanceCutscene"
     | "addLog"
     | "closeUi"
     | "triggerAttackAnim"
     | "addSpeechBubble"
     | "removeSpeechBubble"
+    | "setGameState"
   >
 > = (set, get) => ({
   logs: [],
@@ -25,11 +26,16 @@ export const createUISlice: StateCreator<
   screenShake: 0,
   isLoading: true,
   currentDialogue: undefined,
-  currentCutsceneId: null, // Initialisation
+  currentCutsceneId: null,
   currentMerchantId: undefined,
   attackAnims: [],
   speechBubbles: [],
   inputMethod: "keyboard",
+
+  // Implémentation requise
+  setGameState: (newState: GameState) => {
+    set({ gameState: newState });
+  },
 
   setInputMethod: (method: "keyboard" | "gamepad") => {
     if (get().inputMethod !== method) {
@@ -37,29 +43,23 @@ export const createUISlice: StateCreator<
     }
   },
 
-  // Ancien système (texte simple)
   advanceDialogue: () => {
     set({ currentDialogue: undefined, gameState: "playing" });
   },
 
-  // --- NOUVEAU SYSTÈME VISUAL NOVEL ---
-
   startCutscene: (id: string) => {
     set({
       currentCutsceneId: id,
-      gameState: "dialogue", // Met le jeu en pause
+      gameState: "dialogue",
     });
   },
 
   advanceCutscene: () => {
-    // Cette fonction est appelée par StoryOverlay quand la scène est finie
     set({
       currentCutsceneId: null,
-      gameState: "playing", // Reprend le jeu
+      gameState: "playing",
     });
   },
-
-  // ------------------------------------
 
   addLog: (msg: string) => {
     set((state) => ({ logs: [...state.logs, msg].slice(-20) }));
@@ -71,7 +71,6 @@ export const createUISlice: StateCreator<
 
   triggerAttackAnim: (x: number, y: number, dir: string, type: string) => {
     const id = Math.random().toString();
-    // On doit s'assurer que 'dir' est bien de type Direction
     const validDir =
       dir === "up" || dir === "down" || dir === "left" || dir === "right"
         ? dir
@@ -80,7 +79,7 @@ export const createUISlice: StateCreator<
     set((state) => ({
       attackAnims: [
         ...state.attackAnims,
-        { x, y, dir: validDir, type, progress: 0, id },
+        { x, y, dir: validDir as any, type, progress: 0, id },
       ],
     }));
 

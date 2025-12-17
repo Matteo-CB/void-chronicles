@@ -44,16 +44,19 @@ const BASE_WEAPONS: Record<
   wand: [{ name: "Baguette", range: 4, dmg: 8 }],
 };
 
+// CORRECTION ICI : Type 'potion' et stats HP explicites
 export const POTION_ITEM: Item = {
   id: "potion",
   name: "Potion de Soin",
-  type: "consumable",
+  type: "potion", // Était 'consumable', passé à 'potion' pour sécurité
   rarity: "common",
   value: 50,
-  description: "Soin 50%",
+  description: "Restaure 50 PV",
   visualColor: "#f43f5e",
   color: "#f43f5e",
-  stats: {},
+  stats: {
+    hp: 50, // Ajout vital pour que useItem détecte le soin
+  },
   spriteKey: "POTION",
 };
 
@@ -83,9 +86,20 @@ export function generateLoot(level: number): Item {
 
   const typeRoll = Math.random();
   let type: ItemType = "weapon";
-  if (typeRoll > 0.45) type = "armor";
-  if (typeRoll > 0.75) type = "accessory";
-  if (typeRoll > 0.92) type = "spellbook";
+
+  // Chance d'avoir une potion en butin classique aussi
+  if (typeRoll > 0.95) type = "potion";
+  else if (typeRoll > 0.45) type = "armor";
+  else if (typeRoll > 0.75) type = "accessory";
+  else if (typeRoll > 0.92) type = "spellbook";
+
+  if (type === "potion") {
+    return {
+      ...POTION_ITEM,
+      id: `loot_pot_${Math.random()}`,
+      value: 20, // Moins cher à la revente
+    };
+  }
 
   const rarityColor =
     rarity === "mythic"
@@ -103,7 +117,6 @@ export function generateLoot(level: number): Item {
   else if (type === "accessory") spriteKey = "RELIC";
   else if (type === "spellbook") spriteKey = "SPELLBOOK";
 
-  // Initialisation propre de stats pour éviter undefined plus tard
   let item: Item = {
     id: Math.random().toString(),
     name: "Objet",
@@ -125,9 +138,6 @@ export function generateLoot(level: number): Item {
       maxMana: 0,
     },
   };
-
-  // ... (Logique prefixes/suffixes conservée telle quelle, juste besoin d'assurer que stats existe)
-  // Comme item.stats est initialisé ci-dessus, on peut y accéder sans souci
 
   const hasPrefix = Math.random() < affixChance;
   const hasSuffix = Math.random() < affixChance;
@@ -157,7 +167,6 @@ export function generateLoot(level: number): Item {
         item.onHitEffect = { type: "knockback", chance: 1, value: 1 };
     }
 
-    // Assertion non null car on l'a initialisé
     item.stats!.attack = atk;
 
     if (suffix) {

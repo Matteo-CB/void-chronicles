@@ -26,8 +26,16 @@ const BASE_STATS: Stats = {
   arcane: 1,
 };
 
-// Base de données des ennemis (Exportée pour levels.ts)
-export const ENEMY_DB: Record<string, Partial<Entity>> = {
+// Interface étendue pour les comportements IA avancés
+export interface EnemyConfig extends Partial<Entity> {
+  aiBehavior: "chaser" | "archer" | "caster" | "tank" | "boss";
+  aggroRange?: number; // Distance de détection
+  fleeHealthThreshold?: number; // % PV pour fuir (0-1)
+  minDistance?: number; // Distance min à garder (pour archers/mages)
+  attackCooldown?: number; // Délai entre les attaques (ms)
+}
+
+export const ENEMY_DB: Record<string, EnemyConfig> = {
   RAT: {
     name: "Rat Géant",
     spriteKey: "RAT",
@@ -36,10 +44,11 @@ export const ENEMY_DB: Record<string, Partial<Entity>> = {
       hp: 30,
       maxHp: 30,
       attack: 5,
-      speed: 1.2,
+      speed: 1.3,
       xpValue: 5,
     },
     aiBehavior: "chaser",
+    aggroRange: 8,
     visualScale: 0.8,
   },
   GOBLIN: {
@@ -54,6 +63,7 @@ export const ENEMY_DB: Record<string, Partial<Entity>> = {
       xpValue: 10,
     },
     aiBehavior: "chaser",
+    aggroRange: 10,
     visualScale: 1,
   },
   SKELETON: {
@@ -67,7 +77,8 @@ export const ENEMY_DB: Record<string, Partial<Entity>> = {
       speed: 0.8,
       xpValue: 12,
     },
-    aiBehavior: "chaser",
+    aiBehavior: "tank",
+    aggroRange: 12,
     visualScale: 1,
   },
   ARCHER: {
@@ -83,6 +94,8 @@ export const ENEMY_DB: Record<string, Partial<Entity>> = {
     },
     aiBehavior: "archer",
     range: 6,
+    minDistance: 4,
+    aggroRange: 10,
     visualScale: 1,
   },
   BAT: {
@@ -93,10 +106,12 @@ export const ENEMY_DB: Record<string, Partial<Entity>> = {
       hp: 20,
       maxHp: 20,
       attack: 6,
-      speed: 1.5,
+      speed: 1.6,
       xpValue: 8,
+      dodgeChance: 0.2,
     },
     aiBehavior: "chaser",
+    aggroRange: 7,
     visualScale: 0.7,
   },
   SLIME: {
@@ -111,6 +126,7 @@ export const ENEMY_DB: Record<string, Partial<Entity>> = {
       xpValue: 12,
     },
     aiBehavior: "chaser",
+    aggroRange: 5,
     visualScale: 1,
   },
   SORCERER: {
@@ -125,29 +141,31 @@ export const ENEMY_DB: Record<string, Partial<Entity>> = {
       xpValue: 25,
     },
     aiBehavior: "caster",
-    range: 5,
+    range: 6,
+    minDistance: 5,
+    aggroRange: 11,
     projectileColor: "#8b5cf6",
     visualScale: 1,
   },
 };
 
-// Fonction de création (Utilisée par spawner.ts)
 export function createEnemy(
   key: string,
   position: { x: number; y: number },
   level: number
 ): Entity {
   const base = ENEMY_DB[key] || ENEMY_DB["RAT"];
-  const multiplier = 1 + (level - 1) * 0.2;
+  const multiplier = 1 + (level - 1) * 0.25;
 
-  // On s'assure de cloner proprement les stats
   const stats = { ...base.stats! };
   stats.hp = Math.floor(stats.hp * multiplier);
   stats.maxHp = Math.floor(stats.maxHp * multiplier);
   stats.attack = Math.floor(stats.attack * multiplier);
   stats.xpValue = Math.floor(stats.xpValue * multiplier);
 
-  return {
+  // Correction TypeScript : On utilise 'any' pour permettre les nouvelles propriétés d'IA
+  // sans casser le typage strict de 'Entity' dans le reste de l'app.
+  const enemyData = {
     id: `enemy_${Date.now()}_${Math.random()}`,
     type: "enemy",
     name: base.name!,
@@ -159,6 +177,11 @@ export function createEnemy(
     aiBehavior: base.aiBehavior as any,
     range: base.range,
     projectileColor: base.projectileColor,
-    moveTimer: Math.random() * 1000, // Décalage initial pour éviter que tous bougent en même temps
+    minDistance: base.minDistance || 0,
+    aggroRange: base.aggroRange || 10,
+    moveTimer: Math.random() * 1000,
+    attackTimer: Math.random() * 2000,
   };
+
+  return enemyData as any as Entity;
 }

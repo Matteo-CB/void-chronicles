@@ -1,6 +1,6 @@
 import { LevelTheme } from "@/types/game";
 import { drawPlayer } from "./sprites/playerSprite";
-import { drawMob } from "./sprites/mobs";
+import { drawMob } from "./sprites/mobs"; // Assure-toi que index.ts exporte bien drawSlime/drawGoblin via drawMob
 import { drawBoss } from "./sprites/bosses";
 import { drawItem } from "./sprites/items";
 import { drawDecor } from "./sprites/decor";
@@ -19,6 +19,7 @@ function createCachedSprite(
   const ctx = canvas.getContext("2d");
   if (ctx) {
     ctx.imageSmoothingEnabled = false;
+    // On centre un peu le dessin si nécessaire, mais on dessine direct ici
     drawFn(ctx);
   }
   spriteCache[key] = canvas;
@@ -35,6 +36,12 @@ export function getSprite(
 
   if (!spriteCache[cacheKey]) {
     return createCachedSprite(cacheKey, (ctx) => {
+      // --- EFFETS GLOBAUX ---
+      // Si c'est un sort ou un truc magique, on active un léger glow par défaut
+      if (type === "FIREBALL" || type.includes("STAFF") || type === "POTION") {
+        // Le glow sera géré individuellement dans les fonctions de dessin pour plus de précision
+      }
+
       if (type === "PLAYER") {
         drawPlayer(ctx);
       } else if (
@@ -46,7 +53,7 @@ export function getSprite(
           "CHEST",
           "POTION",
           "GOLD",
-          "RELIC", // Remplacement de l'Amulette
+          "RELIC",
           "ARMOR",
         ].includes(type)
       ) {
@@ -63,10 +70,10 @@ export function getSprite(
           "STAIRS",
           "FIREBALL",
           "BARREL",
-          "CRACK", // AJOUTÉ : Correction bug affichage fissure
-          "VENT", // AJOUTÉ : Correction bug affichage ventilation
-          "PIPE", // AJOUTÉ : Correction bug affichage tuyaux
-          "BONES", // AJOUTÉ : Correction bug affichage ossements
+          "CRACK",
+          "VENT",
+          "PIPE",
+          "BONES",
         ].includes(type) ||
         type.startsWith("CRYSTAL")
       ) {
@@ -78,6 +85,8 @@ export function getSprite(
       ) {
         drawBoss(ctx, type);
       } else {
+        // Fallback pour les mobs standards (Rat, etc. si non définis explicitement)
+        // Note: Assure-toi que drawMob gère le mapping vers drawSlime/drawGoblin
         drawMob(ctx, type);
       }
     });
@@ -86,5 +95,25 @@ export function getSprite(
 }
 
 export function generateBackgroundSVG() {
-  return `<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><defs><filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.6" numOctaves="3"/><feColorMatrix type="saturate" values="0"/></filter><radialGradient id="g" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#1c1917" stop-opacity="0.3"/><stop offset="100%" stop-color="#000"/></radialGradient></defs><rect width="100%" height="100%" fill="#0a0a0a"/><rect width="100%" height="100%" fill="url(#g)"/><rect width="100%" height="100%" fill="transparent" opacity="0.1" filter="url(#n)"/></svg>`;
+  // Fond plus sombre et texturé
+  return `<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <filter id="noise">
+        <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="4" stitchTiles="stitch"/>
+        <feColorMatrix type="saturate" values="0"/>
+        <feComponentTransfer><feFuncA type="linear" slope="0.05"/></feComponentTransfer>
+      </filter>
+      <radialGradient id="vignette" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+        <stop offset="0%" stop-color="#000" stop-opacity="0"/>
+        <stop offset="100%" stop-color="#000" stop-opacity="0.6"/>
+      </radialGradient>
+      <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+        <path d="M 48 0 L 0 0 0 48" fill="none" stroke="#ffffff" stroke-opacity="0.03" stroke-width="1"/>
+      </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="#050505"/>
+    <rect width="100%" height="100%" fill="url(#grid)"/>
+    <rect width="100%" height="100%" filter="url(#noise)"/>
+    <rect width="100%" height="100%" fill="url(#vignette)"/>
+  </svg>`;
 }

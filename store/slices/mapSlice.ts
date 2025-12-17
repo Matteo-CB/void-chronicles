@@ -1,11 +1,40 @@
 import { StateCreator } from "zustand";
 import { GameStore } from "../types";
 import { generateDungeon } from "@/lib/dungeon";
+import { calculateFOV } from "@/lib/dungeon/fov";
 import { POTION_ITEM } from "@/lib/data/items";
 import { Direction } from "@/types/game";
 import { getInitialMasteries } from "@/lib/data/masteries";
 import { handleMovePlayer } from "./map/mapMovement";
 import storyData from "@/lib/data/storyData.json";
+
+const STAIRS_STATS = {
+  hp: 1000,
+  maxHp: 1000,
+  mana: 0,
+  maxMana: 0,
+  attack: 0,
+  defense: 0,
+  speed: 0,
+  xpValue: 0,
+  critChance: 0,
+  critDamage: 0,
+  dodgeChance: 0,
+  lifesteal: 0,
+  armorPen: 0,
+  cooldownReduction: 0,
+  spellPower: 0,
+  strength: 0,
+  endurance: 0,
+  agility: 0,
+  wisdom: 0,
+  willpower: 0,
+  luck: 0,
+  accuracy: 0,
+  arcane: 0,
+};
+
+const SAVE_KEY_PREFIX = "void_chronicles_save_slot_";
 
 export const createMapSlice: StateCreator<
   GameStore,
@@ -18,53 +47,103 @@ export const createMapSlice: StateCreator<
 > = (set, get) => ({
   map: [],
   dungeonLevel: 1,
+  currentSlot: 1,
 
-  initGame: async (loadSave: boolean = false) => {
-    set({ isLoading: true });
-    if (!loadSave) await new Promise((r) => setTimeout(r, 500));
+  initGame: async (loadSave: boolean = false, slotId: number = 1) => {
+    set({ isLoading: true, currentSlot: slotId });
+
+    await new Promise((r) => setTimeout(r, 600));
 
     let currentLevel = 1;
     let loadedData: any = null;
+    const storageKey = `${SAVE_KEY_PREFIX}${slotId}`;
 
     if (loadSave) {
-      const saved = localStorage.getItem("void_chronicles_save");
+      const saved = localStorage.getItem(storageKey);
       if (saved) {
         try {
           loadedData = JSON.parse(saved);
-          currentLevel = loadedData.dungeonLevel || 1;
+          if (!loadedData.map || loadedData.map.length === 0) {
+            console.warn("Sauvegarde corrompue, nouvelle partie forcée.");
+            loadedData = null;
+          } else {
+            currentLevel = loadedData.dungeonLevel || 1;
+            if (loadedData.player) {
+              let fixedGold = Number(loadedData.player.gold);
+              if (isNaN(fixedGold)) fixedGold = 0;
+              loadedData.player.gold = fixedGold;
+            }
+          }
         } catch (e) {
-          console.error(e);
+          console.error("Erreur save:", e);
+          loadedData = null;
         }
       }
     }
 
-    // --- CORRECTION : Utilisation de undefined au lieu de null pour currentDialogue ---
     set({
-      currentCutsceneId: null, // Autorisé car typé string | null
-      currentDialogue: undefined, // CORRECTION: Typé string | undefined
-      gameState: "playing",
+      currentCutsceneId: null,
+      currentDialogue: undefined,
       isLoading: false,
     });
 
     if (loadedData) {
-      set({ ...loadedData, isLoading: false, gameState: "playing" });
+      let enemies = loadedData.enemies || [];
+      // Force le recalcul du FOV (Réparateur d'écran noir)
+      let safeMap = calculateFOV(loadedData.map, loadedData.player.position);
+
+      const hasStairs = enemies.some((e: any) => e.type === "stairs");
+      if (!hasStairs) {
+        let stairsX = 1;
+        let stairsY = 1;
+        for (let y = safeMap.length - 2; y > 1; y--) {
+          for (let x = safeMap[0].length - 2; x > 1; x--) {
+            if (safeMap[y][x].type === "floor") {
+              stairsX = x;
+              stairsY = y;
+              break;
+            }
+          }
+          if (stairsX !== 1) break;
+        }
+        enemies.push({
+          id: "stairs_rescue",
+          type: "stairs",
+          name: "Sortie",
+          spriteKey: "STAIRS",
+          position: { x: stairsX, y: stairsY },
+          stats: STAIRS_STATS,
+          isHostile: false,
+          isHidden: true,
+        });
+      }
+
+      set({
+        ...loadedData,
+        map: safeMap,
+        enemies,
+        gameState: "playing",
+        isLoading: false,
+      });
     } else {
       const { map, spawn, entities, levelConfig } =
         generateDungeon(currentLevel);
+      const mapWithFOV = calculateFOV(map, spawn);
 
       set({
-        map,
+        map: mapWithFOV,
         enemies: entities,
         levelTheme: {
-          floorColor: levelConfig.colors.floor,
-          wallColor: levelConfig.colors.wall,
-          wallSideColor: levelConfig.colors.wallSide,
-          name: levelConfig.name,
+          floorColor: levelConfig?.floorColor || "#27272a", // Fallbacks couleurs
+          wallColor: levelConfig?.wallColor || "#52525b",
+          wallSideColor: levelConfig?.wallSideColor || "#3f3f46",
+          name: levelConfig?.name || "Zone Inconnue",
         },
         player: {
           ...(get().player || {}),
           position: spawn,
           level: 1,
+          gold: 0,
           stats: {
             hp: 150,
             maxHp: 150,
@@ -91,15 +170,15 @@ export const createMapSlice: StateCreator<
             arcane: 1,
           },
           spells: [],
-          learnedSpells: [],
-          equippedSpells: [null, null, null],
+          learnedSpells: [], // Préservé
+          equippedSpells: [null, null, null], // NULL autorisé par ton types.ts
           statusEffects: [],
           xpToNext: 100,
           attributePoints: 0,
           masteryPoints: 0,
           masteries: getInitialMasteries(),
+          equipment: { weapon: null, armor: null, accessory: null },
         },
-        gameState: "playing",
         dungeonLevel: currentLevel,
         inventory: [{ ...POTION_ITEM, id: "p1" }],
         logs: [],
@@ -109,21 +188,24 @@ export const createMapSlice: StateCreator<
         screenShake: 0,
         speechBubbles: [],
         isLoading: false,
+        gameState: "playing",
       });
-    }
 
-    // --- GESTION DE L'HISTOIRE ---
-    const story = storyData as any;
-    const levelEvent = story.levelEvents[currentLevel.toString()];
-
-    // On ne lance la cutscene QUE si un événement existe
-    if (levelEvent && levelEvent.introCutsceneId) {
-      get().startCutscene(levelEvent.introCutsceneId);
+      const story = storyData as any;
+      const evt = story.levelEvents[currentLevel.toString()];
+      if (evt && evt.introCutsceneId) {
+        set({ gameState: "dialogue" });
+        setTimeout(() => get().startCutscene(evt.introCutsceneId), 100);
+      }
+      get().saveGame();
     }
   },
 
   saveGame: () => {
     const state = get();
+    if (state.gameState === "gameover" || state.isLoading) return;
+
+    const slotId = (state as any).currentSlot || 1;
     const saveState = {
       map: state.map,
       player: state.player,
@@ -131,29 +213,43 @@ export const createMapSlice: StateCreator<
       inventory: state.inventory,
       dungeonLevel: state.dungeonLevel,
       levelTheme: state.levelTheme,
+      currentSlot: slotId,
     };
-    localStorage.setItem("void_chronicles_save", JSON.stringify(saveState));
+    localStorage.setItem(
+      `${SAVE_KEY_PREFIX}${slotId}`,
+      JSON.stringify(saveState)
+    );
+
+    const metaKey = "void_chronicles_meta";
+    const meta = JSON.parse(localStorage.getItem(metaKey) || "{}");
+    meta[slotId] = {
+      date: new Date().toLocaleDateString(),
+      level: state.player.level,
+      floor: state.dungeonLevel,
+      gold: state.player.gold,
+    };
+    localStorage.setItem(metaKey, JSON.stringify(meta));
   },
 
-  movePlayerMapLogic: (direction: Direction) => {
-    handleMovePlayer(set, get, direction);
-  },
+  movePlayerMapLogic: (direction: Direction) =>
+    handleMovePlayer(set, get, direction),
 
   interactMapLogic: () => {
-    const { player, enemies, addItem, addLog } = get();
-    let dx = 0;
-    let dy = 0;
+    const { player, enemies, addItem, addLog, startCutscene } = get();
+    let dx = 0,
+      dy = 0;
     if (player.direction === "up") dy = -1;
     if (player.direction === "down") dy = 1;
     if (player.direction === "left") dx = -1;
     if (player.direction === "right") dx = 1;
+
     const tX = player.position.x + dx;
     const tY = player.position.y + dy;
 
     const target = enemies.find(
       (e) =>
-        e.position.x === tX &&
-        e.position.y === tY &&
+        Math.round(e.position.x) === tX &&
+        Math.round(e.position.y) === tY &&
         !e.isHidden &&
         !e.isDead &&
         e.type !== "rubble"
@@ -163,51 +259,48 @@ export const createMapSlice: StateCreator<
       if (target.type === "chest" && !target.isOpen) {
         const currentLevel = get().dungeonLevel || 1;
         const loot = require("@/lib/data/items").generateLoot(currentLevel);
-        addItem(loot);
-        addLog(`Trouvé : ${loot.name}`);
-        set({
-          enemies: enemies.map((e) =>
-            e.id === target.id ? { ...e, isOpen: true } : e
-          ),
-        });
+        if (addItem(loot)) {
+          addLog(`Trésor découvert : ${loot.name}`);
+          set({
+            enemies: enemies.map((e) =>
+              e.id === target.id ? { ...e, isOpen: true } : e
+            ),
+          });
+        }
       } else if (target.type === "merchant") {
         set({ gameState: "shop", currentMerchantId: target.id });
       } else if (target.type === "stairs") {
         const nextLevel = (get().dungeonLevel || 1) + 1;
-
         set({ isLoading: true });
+        set({ currentCutsceneId: null, currentDialogue: undefined });
 
-        setTimeout(async () => {
-          // Réinitialisation forcée avant le prochain niveau
-          set({
-            currentCutsceneId: null,
-            currentDialogue: undefined, // CORRECTION ICI AUSSI
-            gameState: "playing",
-          });
-
+        setTimeout(() => {
           const { map, spawn, entities, levelConfig } =
             generateDungeon(nextLevel);
+          const mapWithFOV = calculateFOV(map, spawn);
           const story = storyData as any;
           const levelEvent = story.levelEvents[nextLevel.toString()];
 
           set({
-            map,
+            map: mapWithFOV,
             enemies: entities,
             levelTheme: {
-              floorColor: levelConfig.colors.floor,
-              wallColor: levelConfig.colors.wall,
-              wallSideColor: levelConfig.colors.wallSide,
-              name: levelConfig.name,
+              floorColor: levelConfig?.floorColor || "#27272a",
+              wallColor: levelConfig?.wallColor || "#52525b",
+              wallSideColor: levelConfig?.wallSideColor || "#3f3f46",
+              name: levelConfig?.name || "Zone Inconnue",
             },
             player: { ...get().player, position: spawn },
             dungeonLevel: nextLevel,
             isLoading: false,
-            gameState: "playing",
           });
 
           if (levelEvent && levelEvent.introCutsceneId) {
-            get().startCutscene(levelEvent.introCutsceneId);
+            startCutscene(levelEvent.introCutsceneId);
+          } else {
+            set({ gameState: "playing", currentDialogue: undefined });
           }
+          get().saveGame();
         }, 500);
       }
     }

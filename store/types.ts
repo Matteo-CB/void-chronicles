@@ -1,133 +1,102 @@
 import {
+  Player,
+  MapTile,
   Entity,
   Item,
-  LevelTheme,
-  Particle,
-  Projectile,
-  SpeechBubble,
-  Tile,
-  FloatingText,
   Direction,
+  GameState,
+  Particle,
+  FloatingText,
+  Projectile,
   AttackAnim,
-  Equipment,
+  SpeechBubble,
+  LevelTheme,
 } from "@/types/game";
 
-export interface PlayerState {
-  position: { x: number; y: number };
-  direction: Direction;
-  stats: {
-    hp: number;
-    maxHp: number;
-    mana: number;
-    maxMana: number;
-    attack: number;
-    defense: number;
-    speed: number;
-    xpValue: number;
-    critChance: number;
-    critDamage: number;
-    dodgeChance: number;
-    lifesteal: number;
-    armorPen: number;
-    cooldownReduction: number;
-    spellPower: number;
-    strength: number;
-    endurance: number;
-    agility: number;
-    wisdom: number;
-    willpower: number;
-    luck: number;
-    accuracy: number;
-    arcane: number;
-  };
-  gold: number;
-  xp: number;
-  xpToNext: number;
-  level: number;
-  equipment: Equipment;
-  spells: any[];
-  learnedSpells: string[];
-  equippedSpells: (string | null)[];
-  statusEffects: any[];
-  attributePoints: number;
-  masteryPoints: number;
-  masteries: any[];
-  lastAttackTime?: number;
-  name?: string;
-}
-
 export interface GameStore {
-  // État
-  map: Tile[][];
-  player: PlayerState;
+  // --- ÉTAT DU JEU ---
+  map: MapTile[][];
+  player: Player;
   enemies: Entity[];
-  projectiles: Projectile[];
-  particles: Particle[];
-  floatingTexts: FloatingText[];
-  logs: string[]; // CORRECTION: Nom standardisé
   inventory: (Item | null)[];
-  dungeonLevel: number;
-  gameState:
-    | "start"
-    | "playing"
-    | "inventory"
-    | "shop"
-    | "gameover"
-    | "dialogue"
-    | "spellbook"
-    | "levelup";
+  logs: string[];
   levelTheme: LevelTheme;
-  screenShake: number;
+
+  dungeonLevel: number;
+  gameState: GameState;
   isLoading: boolean;
-
-  // Dialogues & Cutscenes (Mise à jour pour Visual Novel)
-  currentDialogue?: string;
-  currentCutsceneId?: string | null; // NOUVEAU
-
-  currentMerchantId?: string;
-  speechBubbles: SpeechBubble[];
-  attackAnims: AttackAnim[];
   inputMethod: "keyboard" | "gamepad";
   menuSelectionIndex: number;
 
-  // Actions
-  initGame: (loadSave?: boolean) => Promise<void>;
+  currentSlot: number;
+  screenShake: number;
+  hitStop: number;
+  damageFlash: number;
+
+  // Dialogues & Cutscenes
+  currentDialogue?: string;
+  currentCutsceneId?: string | null;
+  currentMerchantId?: string;
+  speechBubbles: SpeechBubble[];
+  attackAnims: AttackAnim[];
+
+  // Effets Visuels
+  particles: Particle[];
+  floatingTexts: FloatingText[];
+  projectiles: Projectile[];
+
+  // --- ACTIONS ---
+
+  // Système
+  initGame: (loadSave?: boolean, slotId?: number) => Promise<void>;
   saveGame: () => void;
   updateGameLogic: (dt: number) => void;
+  combatLoopLogic: (dt: number) => void;
+
+  // *** CORRECTION : Ajout des méthodes manquantes pour les Hooks ***
+  setGameState: (state: GameState) => void;
+  playerAttack: () => void;
 
   // Actions Joueur
   movePlayer: (dir: Direction) => void;
-  performAttack: (type: "light" | "heavy") => void;
-  castSpell: (index: number) => void;
-  interact: () => void;
-  equipSpell: (spellId: string, slotIndex: number) => void;
-  incrementAttribute: (attr: string) => void;
-  unlockMastery: (masteryId: string) => void;
-  calculateStats: () => void;
-
-  // Logique Map (interne mais exposée au store pour les slices)
   movePlayerMapLogic: (direction: Direction) => void;
+
+  performAttack: (type: "light" | "heavy") => void;
+  performAttackAction: (type: "light" | "heavy") => void;
+
+  castSpell: (index: number) => void;
+  castSpellAction: (index: number) => void;
+
+  interact: () => void;
   interactMapLogic: () => void;
+
+  equipSpell: (spellId: string, slotIndex: number) => void;
+  incrementAttribute: (stat: string) => void;
+  unlockMastery: (id: string) => void;
+  calculateStats: () => void;
 
   // UI & Inventaire
   toggleInventory: () => void;
-  equipItem: (item: Item) => void;
-  unequipItem: (slot: string) => void;
-  useItem: (itemId: string) => void;
-  addItem: (item: Item) => void;
-  closeLevelUp: () => void;
-
-  // Shop
-  closeShop: () => void;
-  buyItem: (item: Item) => void;
-
-  // Navigation Menu
   navigateMenu: (dir: Direction) => void;
   selectMenuItem: () => void;
 
-  // Système
+  addItem: (item: Item) => boolean;
+  equipItem: (item: Item) => void;
+  unequipItem: (slot: string) => void;
+  useItem: (itemId: string) => void;
+  buyItem: (item: Item) => void;
+
+  closeShop: () => void;
+  closeLevelUp: () => void;
+  closeUi: () => void;
+  setInputMethod: (method: "keyboard" | "gamepad") => void;
+
+  // Feedback & Logs
   addLog: (msg: string) => void;
   addProjectile: (p: Projectile) => void;
+  addParticle: (p: Particle) => void;
+  addFloatingText: (t: FloatingText) => void;
+
   addEffects: (
     x: number,
     y: number,
@@ -136,7 +105,15 @@ export interface GameStore {
     text?: string,
     textColor?: string
   ) => void;
-  spawnParticles: (x: number, y: number, color: string, count: number) => void;
+
+  spawnParticles: (
+    x: number,
+    y: number,
+    color: string,
+    count: number,
+    type?: "blood" | "spark" | "normal"
+  ) => void;
+
   triggerAttackAnim: (
     x: number,
     y: number,
@@ -144,16 +121,17 @@ export interface GameStore {
     type: string
   ) => void;
 
-  // UI Helpers
-  closeUi: () => void;
-  setInputMethod: (method: "keyboard" | "gamepad") => void;
-
-  // Gestion Histoire (NOUVEAU)
-  advanceDialogue: () => void; // Gardé pour compatibilité
-  startCutscene: (id: string) => void; // NOUVEAU
-  advanceCutscene: () => void; // NOUVEAU
+  // Histoire
+  startCutscene: (id: string) => void;
+  advanceDialogue: () => void;
+  advanceCutscene: () => void;
+  skipCutscene: () => void;
 
   // Speech
-  addSpeechBubble: (bubble: SpeechBubble) => void;
+  addSpeechBubble: (b: SpeechBubble) => void;
   removeSpeechBubble: (id: string) => void;
+
+  // Progression
+  gainXp: (amount: number) => void;
+  levelUp: () => void;
 }

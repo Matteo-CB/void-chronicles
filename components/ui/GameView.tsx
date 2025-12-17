@@ -1,12 +1,16 @@
+"use client";
+
 import { getSprite } from "@/lib/spriteEngine";
 import useGameStore from "@/store/gameStore";
 import { useEffect, useRef } from "react";
-import { SpeechBubble } from "@/types/game";
+import { SpeechBubble, Tile } from "@/types/game";
 
 export default function GameView() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const visualState = useRef<Record<string, { x: number; y: number }>>({});
-  const camera = useRef({ x: 0, y: 0 });
+  // On initialise la caméra avec null pour savoir qu'elle n'est pas calée
+  const camera = useRef<{ x: number; y: number } | null>(null);
+  const torchFlicker = useRef(1.0);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -15,13 +19,18 @@ export default function GameView() {
     if (!ctx) return;
 
     const TILE_SIZE = 48;
-    const VIEW_WIDTH = 26;
-    const VIEW_HEIGHT = 15;
-    const LERP = 0.2;
+    const VIEW_WIDTH = 28;
+    const VIEW_HEIGHT = 18;
+
+    const LERP = 0.15;
     const FONT = '"Press Start 2P", monospace';
 
-    canvas.width = VIEW_WIDTH * TILE_SIZE;
-    canvas.height = VIEW_HEIGHT * TILE_SIZE;
+    const resizeCanvas = () => {
+      canvas.width = VIEW_WIDTH * TILE_SIZE;
+      canvas.height = VIEW_HEIGHT * TILE_SIZE;
+    };
+    window.addEventListener("resize", resizeCanvas);
+    resizeCanvas();
     ctx.imageSmoothingEnabled = false;
 
     let frameId: number;
@@ -37,25 +46,35 @@ export default function GameView() {
         particles,
         floatingTexts,
         screenShake,
-        levelTheme,
+        levelTheme, // Peut être undefined au premier chargement
         projectiles,
         attackAnims,
         speechBubbles,
+        damageFlash,
       } = state;
 
-      ctx.fillStyle = levelTheme?.wallSideColor || "#111";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      if (!map || !map.length) {
+      // SÉCURITÉ : Si pas de map, on ne dessine rien (ou un écran de chargement)
+      if (!map || !map.length || !player) {
         frameId = requestAnimationFrame(render);
         return;
       }
+
+      // COULEURS DE SECOURS (Si levelTheme bug)
+      const bgColor = "#030308";
+
+      torchFlicker.current =
+        0.96 + Math.sin(time * 0.05) * 0.02 + Math.random() * 0.02;
+
+      // 1. FOND
+      ctx.fillStyle = bgColor;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       const allEntities = [
         ...enemies,
         { ...player, type: "player", id: "hero" },
       ];
 
+      // Interpolation positions (Fluidité)
       allEntities.forEach((e: any) => {
         if (e.isHidden) return;
         const tx = e.position.x * TILE_SIZE;
@@ -65,22 +84,35 @@ export default function GameView() {
           visualState.current[e.id] = { x: tx, y: ty };
         else {
           visualState.current[e.id].x +=
-            (tx - visualState.current[e.id].x) * 0.3;
+            (tx - visualState.current[e.id].x) * 0.25;
           visualState.current[e.id].y +=
-            (ty - visualState.current[e.id].y) * 0.3;
+            (ty - visualState.current[e.id].y) * 0.25;
         }
       });
 
+      // --- CAMÉRA ---
       const heroVis = visualState.current["hero"];
       if (heroVis) {
         const targetCamX = heroVis.x - canvas.width / 2 + TILE_SIZE / 2;
         const targetCamY = heroVis.y - canvas.height / 2 + TILE_SIZE / 2;
-        camera.current.x += (targetCamX - camera.current.x) * LERP;
-        camera.current.y += (targetCamY - camera.current.y) * LERP;
+
+        if (!camera.current) {
+          // TELEPORTATION INITIALE : On évite le "travel" depuis 0,0
+          camera.current = { x: targetCamX, y: targetCamY };
+        } else {
+          // Mouvement fluide ensuite
+          camera.current.x += (targetCamX - camera.current.x) * LERP;
+          camera.current.y += (targetCamY - camera.current.y) * LERP;
+        }
+      } else {
+        // Fallback si hero pas encore init
+        if (!camera.current) camera.current = { x: 0, y: 0 };
       }
 
-      const shakeX = screenShake > 0 ? (Math.random() - 0.5) * screenShake : 0;
-      const shakeY = screenShake > 0 ? (Math.random() - 0.5) * screenShake : 0;
+      const shakeX =
+        screenShake > 0 ? (Math.random() - 0.5) * screenShake * 3 : 0;
+      const shakeY =
+        screenShake > 0 ? (Math.random() - 0.5) * screenShake * 3 : 0;
 
       ctx.save();
       ctx.translate(
@@ -88,21 +120,30 @@ export default function GameView() {
         -Math.floor(camera.current.y + shakeY)
       );
 
-      const startCol = Math.floor(camera.current.x / TILE_SIZE);
+      const startCol = Math.floor(camera.current.x / TILE_SIZE) - 1;
       const endCol = startCol + VIEW_WIDTH + 2;
-      const startRow = Math.floor(camera.current.y / TILE_SIZE);
+      const startRow = Math.floor(camera.current.y / TILE_SIZE) - 1;
       const endRow = startRow + VIEW_HEIGHT + 2;
 
+      // A. MAP & OMBRES
       for (let y = startRow; y <= endRow; y++) {
         for (let x = startCol; x <= endCol; x++) {
           if (y >= 0 && y < map.length && x >= 0 && x < map[0].length) {
-            const tile = map[y][x];
+            const tile = map[y][x] as Tile;
+
+            if (tile.visibility === "hidden") {
+              ctx.fillStyle = "#000";
+              ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+              continue;
+            }
+
             const sprite = getSprite(
               tile.type === "wall" ? "WALL" : "FLOOR",
               "idle",
               levelTheme
             );
-            if (sprite)
+
+            if (sprite) {
               ctx.drawImage(
                 sprite,
                 x * TILE_SIZE,
@@ -110,10 +151,54 @@ export default function GameView() {
                 TILE_SIZE,
                 TILE_SIZE
               );
+
+              if (tile.type === "wall") {
+                ctx.fillStyle = "rgba(0,0,0,0.4)";
+                ctx.fillRect(
+                  x * TILE_SIZE,
+                  y * TILE_SIZE + TILE_SIZE - 8,
+                  TILE_SIZE,
+                  8
+                );
+              }
+
+              // OMBRE ET BROUILLARD
+              let light =
+                tile.lightLevel !== undefined
+                  ? tile.lightLevel
+                  : tile.visibility === "visible"
+                  ? 1
+                  : 0;
+
+              if (tile.visibility === "visible") {
+                light *= torchFlicker.current;
+                light = Math.min(1, light * 1.1);
+              } else {
+                // Fog of war
+                light = 0.2;
+              }
+
+              const darkness = 1.0 - light;
+              if (darkness > 0.05) {
+                // SÉCURITÉ SUR LA COULEUR DE L'OMBRE
+                ctx.fillStyle = `rgba(10, 10, 20, ${darkness * 0.98})`;
+                ctx.fillRect(
+                  x * TILE_SIZE,
+                  y * TILE_SIZE,
+                  TILE_SIZE + 1,
+                  TILE_SIZE + 1
+                );
+              }
+            } else {
+              // Fallback si sprite manquant (carré de couleur) pour debug
+              ctx.fillStyle = tile.type === "wall" ? "#444" : "#222";
+              ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+            }
           }
         }
       }
 
+      // B. ENTITÉS
       allEntities.sort(
         (a, b) =>
           (visualState.current[a.id]?.y || 0) -
@@ -122,16 +207,24 @@ export default function GameView() {
 
       allEntities.forEach((e: any) => {
         if (e.isHidden) return;
+        const tX = Math.round(e.position.x);
+        const tY = Math.round(e.position.y);
+
+        // Culling entités
+        if (tY >= 0 && tY < map.length && tX >= 0 && tX < map[0].length) {
+          if (map[tY][tX].visibility !== "visible" && e.id !== "hero") return;
+        }
+
         const vis = visualState.current[e.id];
         if (!vis) return;
 
         if (!e.isDead) {
-          ctx.fillStyle = "rgba(0,0,0,0.4)";
+          ctx.fillStyle = "rgba(0,0,0,0.5)";
           ctx.beginPath();
           ctx.ellipse(
             vis.x + TILE_SIZE / 2,
-            vis.y + TILE_SIZE - 4,
-            TILE_SIZE / 2.5,
+            vis.y + TILE_SIZE - 2,
+            TILE_SIZE / 2.2,
             TILE_SIZE / 5,
             0,
             0,
@@ -145,7 +238,6 @@ export default function GameView() {
           e.isOpen ? "open" : "idle",
           levelTheme
         );
-
         const isStatic =
           [
             "chest",
@@ -157,138 +249,29 @@ export default function GameView() {
             "stairs",
             "merchant",
           ].includes(e.type) || e.isDead;
-        const bob = isStatic ? 0 : Math.sin(time / 10) * 2;
+        const bob = isStatic ? 0 : Math.sin(time / 12) * 2;
 
         if (sprite) {
+          ctx.save();
+          const tile = map[tY]?.[tX];
+          if (tile && tile.lightLevel && e.id !== "hero") {
+            const brightness = 0.5 + tile.lightLevel * 0.5;
+            ctx.filter = `brightness(${brightness * 100}%)`;
+          }
+
           if (e.isDead && e.type !== "rubble") {
-            ctx.globalAlpha = 0.5;
+            ctx.globalAlpha = 0.7;
+            ctx.filter = "grayscale(80%) brightness(50%)";
             ctx.drawImage(sprite, vis.x, vis.y + 10, TILE_SIZE, TILE_SIZE);
-            ctx.globalAlpha = 1;
           } else {
             ctx.drawImage(sprite, vis.x, vis.y + bob, TILE_SIZE, TILE_SIZE);
           }
-        }
-
-        if (e.type === "enemy" && e.isHostile && !e.isBoss && !e.isDead) {
-          ctx.font = `8px ${FONT}`;
-          ctx.fillStyle = "#fff";
-          ctx.textAlign = "center";
-          ctx.shadowColor = "#000";
-          ctx.shadowBlur = 3;
-          ctx.strokeText(e.name, vis.x + TILE_SIZE / 2, vis.y - 12);
-          ctx.fillText(e.name, vis.x + TILE_SIZE / 2, vis.y - 12);
-          ctx.shadowBlur = 0;
-
-          const hpPct = e.stats.hp / e.stats.maxHp;
-          const barW = 32;
-          const bx = vis.x + (TILE_SIZE - barW) / 2;
-          const by = vis.y - 8;
-
-          ctx.fillStyle = "#000";
-          ctx.fillRect(bx - 1, by - 1, barW + 2, 6);
-          ctx.fillStyle = "#555";
-          ctx.fillRect(bx, by, barW, 4);
-          ctx.fillStyle =
-            hpPct > 0.5 ? "#22c55e" : hpPct > 0.25 ? "#facc15" : "#ef4444";
-          ctx.fillRect(bx, by, barW * hpPct, 4);
-
-          if (e.statusEffects && e.statusEffects.length > 0) {
-            e.statusEffects.forEach((s: string, i: number) => {
-              ctx.fillStyle =
-                s === "freeze" ? "#0ea5e9" : s === "burn" ? "#f97316" : "#fff";
-              ctx.beginPath();
-              ctx.arc(bx + i * 8, by - 6, 3, 0, Math.PI * 2);
-              ctx.fill();
-            });
-          }
-        }
-
-        if (e.type === "merchant") {
-          ctx.font = `10px ${FONT}`;
-          ctx.fillStyle = "#fbbf24";
-          ctx.textAlign = "center";
-          ctx.shadowColor = "#000";
-          ctx.shadowBlur = 3;
-          ctx.strokeText(e.name, vis.x + TILE_SIZE / 2, vis.y - 15);
-          ctx.fillText(e.name, vis.x + TILE_SIZE / 2, vis.y - 15);
-          ctx.shadowBlur = 0;
+          ctx.restore();
         }
       });
 
-      if (speechBubbles) {
-        speechBubbles.forEach((bubble: SpeechBubble) => {
-          const target = visualState.current[bubble.targetId];
-          if (target) {
-            const bx = target.x + TILE_SIZE / 2;
-            const by = target.y - 20;
-
-            ctx.font = `10px ${FONT}`;
-            const textMetrics = ctx.measureText(bubble.text);
-            const padding = 10;
-            const w = textMetrics.width + padding * 2;
-            const h = 24;
-
-            ctx.fillStyle = "#fff";
-            if (bubble.color !== "#fff") ctx.fillStyle = "#111";
-
-            ctx.beginPath();
-            ctx.roundRect(bx - w / 2, by - h, w, h, 8);
-            ctx.fill();
-
-            ctx.beginPath();
-            ctx.moveTo(bx, by);
-            ctx.lineTo(bx - 5, by - h + 2);
-            ctx.lineTo(bx + 5, by - h + 2);
-            ctx.fill();
-
-            ctx.strokeStyle = bubble.color;
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.roundRect(bx - w / 2, by - h, w, h, 8);
-            ctx.stroke();
-
-            ctx.fillStyle = bubble.color === "#fff" ? "#000" : bubble.color;
-            ctx.textAlign = "center";
-            ctx.fillText(bubble.text, bx, by - 8);
-          }
-        });
-      }
-
-      if (attackAnims) {
-        attackAnims.forEach((anim: any) => {
-          const cx = anim.x * TILE_SIZE + TILE_SIZE / 2;
-          const cy = anim.y * TILE_SIZE + TILE_SIZE / 2;
-
-          ctx.save();
-          ctx.translate(cx, cy);
-
-          if (anim.type === "cast_enemy" || anim.type === "cast") {
-            ctx.strokeStyle = anim.type === "cast" ? "#3b82f6" : "#ef4444";
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.arc(0, 0, anim.progress * 40, 0, Math.PI * 2);
-            ctx.stroke();
-          } else {
-            const angle =
-              anim.dir === "up"
-                ? -Math.PI / 2
-                : anim.dir === "down"
-                ? Math.PI / 2
-                : anim.dir === "left"
-                ? Math.PI
-                : 0;
-            ctx.rotate(angle);
-            ctx.beginPath();
-            ctx.arc(0, 0, 30, -0.5, 0.5);
-            ctx.strokeStyle = "#fff";
-            ctx.lineWidth = 30 * (1 - anim.progress);
-            ctx.stroke();
-          }
-          ctx.restore();
-        });
-      }
-
-      if (projectiles) {
+      // C. PROJECTILES
+      if (projectiles && projectiles.length > 0) {
         ctx.globalCompositeOperation = "lighter";
         projectiles.forEach((p: any) => {
           const px =
@@ -298,109 +281,173 @@ export default function GameView() {
             (p.startY + (p.targetY - p.startY) * p.progress) * TILE_SIZE +
             TILE_SIZE / 2;
 
-          if (p.trail && p.trail.length > 1) {
-            ctx.beginPath();
-            ctx.moveTo(
-              p.trail[0].x * TILE_SIZE + TILE_SIZE / 2,
-              p.trail[0].y * TILE_SIZE + TILE_SIZE / 2
-            );
-            for (let i = 1; i < p.trail.length; i++) {
-              ctx.lineTo(
-                p.trail[i].x * TILE_SIZE + TILE_SIZE / 2,
-                p.trail[i].y * TILE_SIZE + TILE_SIZE / 2
-              );
-            }
-            ctx.strokeStyle = p.color;
-            ctx.lineWidth = p.damage > 20 ? 4 : 2;
-            ctx.globalAlpha = 0.6;
-            ctx.stroke();
-            ctx.globalAlpha = 1;
-          }
-
           ctx.save();
           ctx.translate(px, py);
+
+          const gradient = ctx.createRadialGradient(0, 0, 2, 0, 0, 20);
+          gradient.addColorStop(0, p.color);
+          gradient.addColorStop(1, "rgba(0,0,0,0)");
+          ctx.fillStyle = gradient;
+          ctx.beginPath();
+          ctx.arc(0, 0, 20, 0, Math.PI * 2);
+          ctx.fill();
+
           const angle = Math.atan2(p.targetY - p.startY, p.targetX - p.startX);
           ctx.rotate(angle);
 
-          if (p.projectileType === "arrow") {
-            ctx.fillStyle = "#fff";
-            ctx.fillRect(-8, -1, 16, 2);
-            ctx.fillStyle = p.color;
+          ctx.fillStyle = "#fff";
+          if (p.trail) {
             ctx.beginPath();
-            ctx.moveTo(8, -3);
-            ctx.lineTo(12, 0);
-            ctx.lineTo(8, 3);
-            ctx.fill();
-          } else {
-            ctx.shadowColor = p.color;
-            ctx.shadowBlur = 10;
-            ctx.fillStyle = "#fff";
-            ctx.beginPath();
-            ctx.arc(0, 0, 4, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = p.color;
-            ctx.beginPath();
-            ctx.arc(0, 0, 2, 0, Math.PI * 2);
-            ctx.fill();
+            ctx.moveTo(-5, 0);
+            ctx.lineTo(-15, 0);
+            ctx.strokeStyle = p.color;
+            ctx.lineWidth = 3;
+            ctx.stroke();
           }
+          ctx.beginPath();
+          ctx.arc(0, 0, 4, 0, Math.PI * 2);
+          ctx.fill();
           ctx.restore();
         });
         ctx.globalCompositeOperation = "source-over";
       }
 
+      // D. FX ATTAQUES
+      if (attackAnims) {
+        ctx.globalCompositeOperation = "lighter";
+        attackAnims.forEach((anim: any) => {
+          const cx = anim.x * TILE_SIZE + TILE_SIZE / 2;
+          const cy = anim.y * TILE_SIZE + TILE_SIZE / 2;
+          ctx.save();
+          ctx.translate(cx, cy);
+          const angle =
+            anim.dir === "up"
+              ? -Math.PI / 2
+              : anim.dir === "down"
+              ? Math.PI / 2
+              : anim.dir === "left"
+              ? Math.PI
+              : 0;
+          ctx.rotate(angle);
+          ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";
+          ctx.lineWidth = 25 * (1 - anim.progress);
+          ctx.shadowColor = "#ffffff";
+          ctx.shadowBlur = 10;
+          ctx.lineCap = "round";
+          ctx.beginPath();
+          ctx.arc(0, 0, 32, -0.6, 0.6);
+          ctx.stroke();
+          ctx.restore();
+        });
+        ctx.globalCompositeOperation = "source-over";
+      }
+
+      // E. PARTICULES
+      ctx.globalCompositeOperation = "lighter";
       particles.forEach((p: any) => {
-        ctx.globalAlpha = Math.max(0, p.life);
         ctx.fillStyle = p.color;
-        const size = p.size || 3;
-        ctx.fillRect(p.x * TILE_SIZE, p.y * TILE_SIZE, size, size);
+        const size = p.size || 2;
+        const alpha = p.type === "spark" ? Math.random() : p.life;
+        ctx.globalAlpha = alpha;
+        ctx.beginPath();
+        ctx.arc(p.x * TILE_SIZE, p.y * TILE_SIZE, size / 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
       });
-      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = "source-over";
+
+      // F. UI IN-GAME
+      allEntities.forEach((e: any) => {
+        if (e.isHidden || e.isDead || !visualState.current[e.id]) return;
+        const tX = Math.round(e.position.x);
+        const tY = Math.round(e.position.y);
+        if (tY >= 0 && tY < map.length && tX >= 0 && tX < map[0].length) {
+          if (map[tY][tX].visibility !== "visible" && e.id !== "hero") return;
+        }
+
+        const vis = visualState.current[e.id];
+        if (e.type === "enemy" && e.isHostile && !e.isBoss) {
+          ctx.font = `bold 10px ${FONT}`;
+          ctx.textAlign = "center";
+
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = "black";
+          ctx.strokeText(e.name, vis.x + TILE_SIZE / 2, vis.y - 14);
+          ctx.fillStyle = "#ffffff";
+          ctx.fillText(e.name, vis.x + TILE_SIZE / 2, vis.y - 14);
+
+          const hpPct = Math.max(0, e.stats.hp / e.stats.maxHp);
+          const barW = 36;
+          const bx = vis.x + (TILE_SIZE - barW) / 2;
+          const by = vis.y - 8;
+
+          ctx.fillStyle = "rgba(0,0,0,0.9)";
+          ctx.fillRect(bx - 1, by - 1, barW + 2, 6);
+          ctx.fillStyle =
+            hpPct > 0.5 ? "#22c55e" : hpPct > 0.25 ? "#facc15" : "#ef4444";
+          ctx.fillRect(bx, by, barW * hpPct, 4);
+        }
+      });
 
       if (floatingTexts) {
         floatingTexts.forEach((t: any) => {
-          if (t.text === "EXPLOSION_VISUAL") {
-            const radius = parseFloat(t.textColor || "2") * TILE_SIZE;
-            ctx.strokeStyle = "#f97316";
-            ctx.lineWidth = 4;
-            ctx.beginPath();
-            ctx.arc(
-              t.x * TILE_SIZE + TILE_SIZE / 2,
-              t.y * TILE_SIZE + TILE_SIZE / 2,
-              radius * (1 - t.life),
-              0,
-              Math.PI * 2
-            );
-            ctx.stroke();
-          } else {
-            const yOffset = (1 - t.life) * 30;
-            ctx.font = t.isCrit ? `bold 20px ${FONT}` : `12px ${FONT}`;
-            ctx.textAlign = "center";
-            ctx.strokeStyle = "#000";
-            ctx.lineWidth = 3;
-            const txt = t.text;
-            const tx = t.x * TILE_SIZE + TILE_SIZE / 2;
-            const ty = t.y * TILE_SIZE - yOffset;
+          const yOffset = (1 - t.life) * 40;
+          ctx.font = t.isCrit ? `bold 20px ${FONT}` : `bold 12px ${FONT}`;
+          ctx.textAlign = "center";
+          const tx = t.x * TILE_SIZE + TILE_SIZE / 2;
+          const ty = t.y * TILE_SIZE - yOffset;
 
-            ctx.globalAlpha = t.life;
-            ctx.strokeText(txt, tx, ty);
-            ctx.fillStyle = t.color;
-            ctx.fillText(txt, tx, ty);
-            ctx.globalAlpha = 1;
+          ctx.lineWidth = 4;
+          ctx.strokeStyle = "black";
+          ctx.strokeText(t.text, tx, ty);
+          ctx.fillStyle = t.color;
+          ctx.fillText(t.text, tx, ty);
+        });
+      }
+
+      if (speechBubbles) {
+        speechBubbles.forEach((bubble: SpeechBubble) => {
+          const target = visualState.current[bubble.targetId];
+          if (target) {
+            const bx = target.x + TILE_SIZE / 2;
+            const by = target.y - 25;
+            ctx.font = `10px ${FONT}`;
+            const tm = ctx.measureText(bubble.text);
+            const w = tm.width + 20;
+            ctx.fillStyle = "rgba(0,0,0,0.9)";
+            ctx.beginPath();
+            ctx.roundRect(bx - w / 2, by - 24, w, 24, 4);
+            ctx.fill();
+            ctx.strokeStyle = bubble.color;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            ctx.fillStyle = bubble.color;
+            ctx.fillText(bubble.text, bx, by - 8);
           }
         });
       }
 
       ctx.restore();
+
+      if (damageFlash && damageFlash > 0) {
+        ctx.fillStyle = `rgba(220, 38, 38, ${damageFlash * 0.4})`;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+
       frameId = requestAnimationFrame(render);
     };
     render();
-    return () => cancelAnimationFrame(frameId);
+    return () => {
+      cancelAnimationFrame(frameId);
+      window.removeEventListener("resize", resizeCanvas);
+    };
   }, []);
 
   return (
     <canvas
       ref={canvasRef}
       className="block w-full h-full rendering-pixelated"
+      style={{ background: "#030308" }}
     />
   );
 }

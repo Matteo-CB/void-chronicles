@@ -1,22 +1,28 @@
+// Fonction de distance manquante
+export function getDistance(
+  p1: { x: number; y: number },
+  p2: { x: number; y: number }
+) {
+  const dx = p1.x - p2.x;
+  const dy = p1.y - p2.y;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
 export function isValidMove(
   map: any,
   enemies: any,
   x: number,
   y: number,
   player: any,
-  ignoreId?: string // NOUVEAU : ID à ignorer (l'entité qui bouge)
+  ignoreId?: string
 ) {
-  // 1. Limites de la carte
   if (x < 0 || y < 0 || y >= map.length || x >= map[0].length) return false;
-
-  // 2. Murs
   if (map[Math.round(y)]?.[Math.round(x)]?.type === "wall") return false;
 
-  // 3. Autres Ennemis (sauf soi-même)
   if (
     enemies.some(
       (e: any) =>
-        e.id !== ignoreId && // CRITIQUE : On ne se bloque pas soi-même
+        e.id !== ignoreId &&
         !e.isDead &&
         e.type !== "rubble" &&
         Math.round(e.position.x) === Math.round(x) &&
@@ -25,7 +31,6 @@ export function isValidMove(
   )
     return false;
 
-  // 4. Joueur
   if (
     Math.round(player.position.x) === Math.round(x) &&
     Math.round(player.position.y) === Math.round(y)
@@ -50,7 +55,9 @@ export function checkLineOfSight(
     sy = y1 < y2 ? 1 : -1;
   let err = dx - dy;
   let i = 0;
-  while (i < 60) {
+
+  // Sécurité boucle infinie
+  while (i < 100) {
     if (Math.abs(x - x2) < 0.5 && Math.abs(y - y2) < 0.5) return true;
     if (map[Math.round(y)]?.[Math.round(x)]?.type === "wall") return false;
     const e2 = 2 * err;

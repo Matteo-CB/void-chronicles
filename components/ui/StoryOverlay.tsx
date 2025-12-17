@@ -14,66 +14,78 @@ export default function StoryOverlay() {
   const [displayedText, setDisplayedText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
 
-  // Utiliser une ref pour stocker l'intervalle et le nettoyer proprement
   const typingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const cutscene = STORY.cutscenes[currentCutsceneId || ""];
-  const currentLine: DialogueLine | undefined = cutscene?.dialogues[lineIndex];
-
-  // --- SÉCURITÉ ANTI-BLOCAGE ---
-  // Si une cutscene est demandée mais n'existe pas dans les données, on la ferme immédiatement.
+  // CORRECTION : Reset total quand la cutscene change pour éviter les index invalides
   useEffect(() => {
-    if (currentCutsceneId && !cutscene) {
-      console.warn(
-        `Cutscene "${currentCutsceneId}" introuvable. Passage automatique.`
-      );
-      advanceCutscene();
-    }
-  }, [currentCutsceneId, cutscene, advanceCutscene]);
+    setLineIndex(0);
+    setDisplayedText("");
+    setIsTyping(false);
+  }, [currentCutsceneId]);
 
-  // Fonction pour avancer (stable avec useCallback)
+  const cutscene = currentCutsceneId
+    ? STORY.cutscenes[currentCutsceneId]
+    : null;
+
+  // Sécurité : On s'assure que lineIndex ne dépasse jamais la longueur du tableau
+  // même pendant le cycle de render où le state n'est pas encore reset
+  const safeLineIndex =
+    cutscene && lineIndex < cutscene.dialogues.length ? lineIndex : 0;
+
+  const currentLine: DialogueLine | undefined =
+    cutscene?.dialogues?.[safeLineIndex];
+
+  // Auto-skip : Si on est monté mais sans données valides, on rend la main au jeu
+  useEffect(() => {
+    if (!cutscene || !currentLine) {
+      const timer = setTimeout(() => {
+        advanceCutscene();
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [cutscene, currentLine, advanceCutscene]);
+
   const handleAdvance = useCallback(() => {
-    // Si pas de ligne ou pas de cutscene, on sort de la cutscene pour débloquer le jeu
     if (!cutscene || !currentLine) {
       advanceCutscene();
       return;
     }
 
     if (isTyping) {
-      // 1. SKIP : On affiche tout tout de suite
       if (typingIntervalRef.current) clearInterval(typingIntervalRef.current);
       setDisplayedText(currentLine.text);
       setIsTyping(false);
     } else {
-      // 2. NEXT : On passe à la ligne suivante
       if (lineIndex < cutscene.dialogues.length - 1) {
         setLineIndex((prev) => prev + 1);
-        // Reset du texte pour la nouvelle ligne se fait dans le useEffect
       } else {
         advanceCutscene();
       }
     }
   }, [isTyping, currentLine, lineIndex, cutscene, advanceCutscene]);
 
-  // --- CONTROLES (Clavier / Manette) ---
   useEffect(() => {
+    if (!cutscene) return;
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Enter" || e.key === " " || e.key === "Escape") {
-        e.preventDefault(); // Evite le scroll avec Espace
+        e.preventDefault();
         handleAdvance();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleAdvance]);
+  }, [handleAdvance, cutscene]);
 
   useEffect(() => {
+    if (!cutscene) return;
+
     let animationFrameId: number;
     let wasPressed = false;
     const pollGamepad = () => {
       const gamepad = navigator.getGamepads()[0];
       if (gamepad) {
-        const isPressed = gamepad.buttons[0].pressed; // Bouton A/Croix
+        const isPressed = gamepad.buttons[0].pressed;
         if (isPressed && !wasPressed) {
           handleAdvance();
         }
@@ -83,20 +95,16 @@ export default function StoryOverlay() {
     };
     pollGamepad();
     return () => cancelAnimationFrame(animationFrameId);
-  }, [handleAdvance]);
+  }, [handleAdvance, cutscene]);
 
-  // --- EFFET TYPEWRITER ---
   useEffect(() => {
     if (!currentLine) return;
 
-    // Reset complet à chaque nouvelle ligne
     setDisplayedText("");
     setIsTyping(true);
-
     let charIndex = 0;
     const fullText = currentLine.text;
 
-    // Nettoyer l'intervalle précédent s'il existe
     if (typingIntervalRef.current) clearInterval(typingIntervalRef.current);
 
     typingIntervalRef.current = setInterval(() => {
@@ -106,22 +114,19 @@ export default function StoryOverlay() {
         if (typingIntervalRef.current) clearInterval(typingIntervalRef.current);
         setIsTyping(false);
       }
-    }, 25); // Vitesse du texte
+    }, 25);
 
     return () => {
       if (typingIntervalRef.current) clearInterval(typingIntervalRef.current);
     };
-  }, [lineIndex, currentLine]); // Déclenchement à chaque changement d'index
+  }, [safeLineIndex, currentLine]); // Utilisation de safeLineIndex
 
-  // Si on n'a pas les données requises, on ne rend rien
-  // (La sécurité useEffect plus haut s'occupera de débloquer le jeu)
   if (!currentCutsceneId || !cutscene || !currentLine) return null;
 
   const speaker = STORY.characters[currentLine.speakerId];
 
   return (
     <div className="absolute inset-0 z-50 bg-black/90 flex flex-col items-center justify-end pb-12">
-      {/* Background */}
       <div
         key={cutscene.backgroundId}
         className={`absolute inset-0 opacity-40 bg-cover bg-center transition-all duration-1000 ${cutscene.backgroundId}`}
@@ -129,11 +134,10 @@ export default function StoryOverlay() {
         <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black" />
       </div>
 
-      {/* Personnages */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <AnimatePresence mode="wait">
           <motion.div
-            key={currentLine.speakerId + lineIndex} // Astuce: key unique force le re-render
+            key={currentLine.speakerId + safeLineIndex}
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 1.05 }}
@@ -158,9 +162,8 @@ export default function StoryOverlay() {
         </AnimatePresence>
       </div>
 
-      {/* Boite de Dialogue */}
       <motion.div
-        key={lineIndex} // Force l'animation à chaque ligne
+        key={safeLineIndex}
         className="relative z-10 w-full max-w-4xl mx-4 cursor-pointer group"
         onClick={handleAdvance}
         initial={{ y: 20, opacity: 0 }}

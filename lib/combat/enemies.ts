@@ -1,96 +1,174 @@
-import { Entity, Tile } from "@/types/game";
-import { CombatCallbacks } from "./types";
-import { isValidMove, checkLineOfSight } from "./utils";
+import { Entity, MapTile } from "@/types/game";
+import { CombatCallbacks } from "@/store/slices/combat/combatCallbacks";
+import { checkLineOfSight, getDistance } from "./utils";
 
-export function updateEnemiesLogic(
+/**
+ * Logique de mise à jour des ennemis (IA Standard + BOSS ÉPIQUES)
+ */
+export const updateEnemiesLogic = (
   enemies: Entity[],
   player: Entity,
-  map: Tile[][],
+  map: MapTile[][],
   dt: number,
   callbacks: CombatCallbacks
-) {
-  // Conversion du delta time en secondes
+): Entity[] => {
   const dtSec = dt / 1000;
 
-  return enemies.map((e: any) => {
-    // Si mort ou objet inerte, on ne fait rien (sauf physique simple si besoin)
+  return enemies.map((e) => {
+    // --- 1. FILTRES & SÉCURITÉS ---
     if (
       e.isDead ||
+      !e.isHostile ||
       e.type === "rubble" ||
-      (!e.isHostile && e.type !== "barrel")
-    )
+      e.type === "barrel"
+    ) {
       return e;
-
-    if (e.type === "barrel") return e;
-
-    // Objets statiques ignorés par l'IA
+    }
     if (
       ["chest", "gold", "potion", "item", "merchant", "stairs"].includes(e.type)
     ) {
-      e.knockbackX = 0;
-      e.knockbackY = 0;
+      if (e.knockbackX || e.knockbackY)
+        return { ...e, knockbackX: 0, knockbackY: 0 };
       return e;
     }
 
-    // --- GESTION DES EFFETS DE STATUT ---
+    // --- 2. STATUS EFFECTS ---
     if (e.statusEffects) {
-      if (e.statusEffects.includes("freeze")) return e; // Gelé = immobile
-      if (e.statusEffects.includes("stun")) return e; // Assommé = immobile
+      if (e.statusEffects.includes("freeze")) return e;
+      if (e.statusEffects.includes("stun")) return e;
       if (e.statusEffects.includes("burn") && Math.random() < 0.05) {
         callbacks.damageEnemy(e.id, 1);
         callbacks.addEffects(e.position.x, e.position.y, "#f97316", 1);
       }
     }
 
-    // --- GESTION PHYSIQUE (RECUL / KNOCKBACK) ---
-    // Le recul est prioritaire sur l'IA volontaire
+    // --- 3. PHYSIQUE (RECUL) ---
     if (
       Math.abs(e.knockbackX || 0) > 0.01 ||
       Math.abs(e.knockbackY || 0) > 0.01
     ) {
-      const drag = 0.9; // Friction pour ralentir le recul
+      const drag = 0.9;
       const nextX = e.position.x + (e.knockbackX || 0);
       const nextY = e.position.y + (e.knockbackY || 0);
 
-      // Vérification collision mur simple pour le recul
-      const targetTile = map[Math.round(nextY)]?.[Math.round(nextX)];
-      if (targetTile?.type !== "wall") {
-        e.position.x = nextX;
-        e.position.y = nextY;
+      if (!isWall(map, nextX, nextY)) {
+        return {
+          ...e,
+          position: { x: nextX, y: nextY },
+          knockbackX: (e.knockbackX || 0) * drag,
+          knockbackY: (e.knockbackY || 0) * drag,
+        };
       } else {
-        // Si on tape un mur, on arrête le recul
-        e.knockbackX = 0;
-        e.knockbackY = 0;
+        return { ...e, knockbackX: 0, knockbackY: 0 };
       }
-
-      e.knockbackX *= drag;
-      e.knockbackY *= drag;
-
-      // On s'arrête si c'est très faible pour éviter les micro-calculs
-      if (Math.abs(e.knockbackX) < 0.01) e.knockbackX = 0;
-      if (Math.abs(e.knockbackY) < 0.01) e.knockbackY = 0;
-
-      return e;
     }
 
-    // --- INTELLIGENCE ARTIFICIELLE (IA) ---
+    // --- 4. CONFIGURATION IA ---
+    let newMoveTimer = (e.moveTimer || 0) + dt;
+    let newAttackTimer = (e.attackTimer || 0) + dt;
+    const distToPlayer = getDistance(e.position, player.position);
 
-    // Vitesse ajustée pour être menaçante
-    let speed = (e.stats.speed || 1) * 2.8;
+    // Les Boss ont une portée infinie, les mobs normaux s'endorment loin
+    const aggroRange = e.aiBehavior === "boss" ? 999 : e.aggroRange || 12;
+    if (distToPlayer > aggroRange) {
+      return { ...e, moveTimer: newMoveTimer, attackTimer: newAttackTimer };
+    }
 
-    if (e.aiBehavior === "charger") speed *= 1.4;
-    if (e.aiBehavior === "boss") speed *= 0.9;
-    if (e.aiBehavior === "static") speed = 0;
+    // --- 5. LOGIQUE SPÉCIALE BOSS ---
+    if (e.aiBehavior === "boss") {
+      return handleBossAI(
+        e,
+        player,
+        map,
+        distToPlayer,
+        dtSec,
+        newAttackTimer,
+        callbacks
+      );
+    }
 
-    const dx = player.position.x - e.position.x;
-    const dy = player.position.y - e.position.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
+    // --- 6. IA STANDARD (Mobs Normaux) ---
+    let speed = (e.stats.speed || 1) * 2.5;
+    const vecX = player.position.x - e.position.x;
+    const vecY = player.position.y - e.position.y;
+    const length = Math.sqrt(vecX * vecX + vecY * vecY);
+    const dirX = length > 0 ? vecX / length : 0;
+    const dirY = length > 0 ? vecY / length : 0;
 
-    // Timer d'attaque
-    let attackTimer = (e.moveTimer || 0) + dt;
-    let attackCooldown = 1000;
+    let dx = 0,
+      dy = 0;
+    let shouldMove = true;
+    const behavior = e.aiBehavior || "chaser";
+    const minDistance = e.minDistance || 0;
+    const range = e.range || 1;
 
-    const hasLineOfSight = checkLineOfSight(
+    // Comportements
+    if (behavior === "archer" || behavior === "caster") {
+      if (distToPlayer < minDistance) {
+        dx = -dirX;
+        dy = -dirY;
+        speed *= 0.8; // Fuite
+      } else if (distToPlayer > range) {
+        dx = dirX;
+        dy = dirY; // Approche
+      } else {
+        shouldMove = false;
+        if (Math.random() < 0.02) {
+          dx = Math.random() - 0.5;
+          dy = Math.random() - 0.5;
+          shouldMove = true;
+        }
+      }
+    } else {
+      if (distToPlayer > 0.8) {
+        dx = dirX;
+        dy = dirY;
+      } else shouldMove = false;
+    }
+
+    // Anti-Stacking
+    let repulX = 0,
+      repulY = 0;
+    enemies.forEach((other) => {
+      if (other.id === e.id || other.isDead || !other.isHostile) return;
+      const d = getDistance(e.position, other.position);
+      if (d < 0.7) {
+        const pushX = e.position.x - other.position.x;
+        const pushY = e.position.y - other.position.y;
+        const force = 1.2 / (pushX * pushX + pushY * pushY + 0.1);
+        repulX += pushX * force;
+        repulY += pushY * force;
+      }
+    });
+    if (shouldMove || Math.abs(repulX) > 0.1) {
+      dx += repulX;
+      dy += repulY;
+    }
+
+    // Normalisation Mouvement
+    const finalLen = Math.sqrt(dx * dx + dy * dy);
+    if (finalLen > 0) {
+      dx = (dx / finalLen) * speed * dtSec;
+      dy = (dy / finalLen) * speed * dtSec;
+    }
+
+    // Application Mouvement (Glissement)
+    let nextX = e.position.x,
+      nextY = e.position.y;
+    if (shouldMove || finalLen > 0) {
+      if (!isWall(map, nextX + dx, nextY + dy)) {
+        nextX += dx;
+        nextY += dy;
+      } else if (!isWall(map, nextX + dx, nextY)) {
+        nextX += dx;
+      } else if (!isWall(map, nextX, nextY + dy)) {
+        nextY += dy;
+      }
+    }
+
+    // Attaques Standard
+    const attackCooldown = e.attackCooldown || 1500;
+    const hasLOS = checkLineOfSight(
       map,
       e.position.x,
       e.position.y,
@@ -98,147 +176,226 @@ export function updateEnemiesLogic(
       player.position.y
     );
 
-    // -- COMPORTEMENT : TIREUR (Distance) --
-    if (["archer", "caster", "sniper"].includes(e.aiBehavior || "")) {
-      const range = (e as any).range || 6;
+    if (newAttackTimer >= attackCooldown && hasLOS) {
+      const attackRange = e.range || 1.2;
 
-      // Fuite si le joueur est trop près (Kiting)
-      if (dist < 2.5) {
-        const moveX = -(dx / dist) * speed * dtSec;
-        const moveY = -(dy / dist) * speed * dtSec;
-        tryMoveEntity(e, moveX, moveY, map, enemies, player);
-      }
-      // Tir si à portée et ligne de vue dégagée
-      else if (dist <= range && hasLineOfSight) {
-        if (attackTimer >= 1500) {
-          // Cadence de tir plus lente
-          const animType =
-            e.aiBehavior === "caster" ? "cast_enemy" : "bow_enemy";
-          let dir: any = "down";
-          if (Math.abs(dx) > Math.abs(dy)) dir = dx > 0 ? "right" : "left";
-          else dir = dy > 0 ? "down" : "up";
+      if (
+        (behavior === "archer" || behavior === "caster") &&
+        distToPlayer <= attackRange
+      ) {
+        newAttackTimer = 0;
+        const animType = behavior === "caster" ? "cast_enemy" : "bow_enemy";
+        callbacks.triggerAttackAnim(
+          e.position.x,
+          e.position.y,
+          getFaceDir(vecX, vecY),
+          animType
+        );
 
-          callbacks.triggerAttackAnim(
-            e.position.x,
-            e.position.y,
-            dir,
-            animType
-          );
-
-          // Tir du projectile
-          const angle = Math.atan2(dy, dx);
-          const safeDist = 0.6; // Spawn un peu devant pour pas se toucher soi-même
-          const startX = e.position.x + Math.cos(angle) * safeDist;
-          const startY = e.position.y + Math.sin(angle) * safeDist;
-
-          callbacks.addProjectile({
-            id: `proj_mob_${Math.random()}`,
-            startX,
-            startY,
-            targetX: player.position.x,
-            targetY: player.position.y,
-            damage: e.stats.attack,
-            color: (e as any).projectileColor || "#ef4444",
-            progress: 0,
-            speed: 0.15,
-            isEnemy: true,
-            projectileType: e.aiBehavior === "caster" ? "fireball" : "arrow",
-            trail: [],
-            explodeOnHit: e.aiBehavior === "caster",
-            radius: 2,
-          });
-          attackTimer = 0;
-        }
-      }
-      // Sinon, on s'approche pour trouver une ligne de vue
-      else {
-        const moveX = (dx / dist) * speed * dtSec;
-        const moveY = (dy / dist) * speed * dtSec;
-        tryMoveEntity(e, moveX, moveY, map, enemies, player);
-      }
-    }
-    // -- COMPORTEMENT : MÊLÉE (Chaser, Boss) --
-    else {
-      // Attaque au corps à corps
-      if (dist <= 1.2) {
-        if (attackTimer >= attackCooldown) {
-          const dmg = Math.max(
-            1,
-            e.stats.attack - Math.floor(player.stats.defense / 2)
-          );
-          callbacks.damagePlayer(dmg);
-          callbacks.addEffects(
-            player.position.x,
-            player.position.y,
-            "#ef4444",
-            10,
-            `-${dmg}`
-          );
-          callbacks.shakeScreen(3);
-
-          let dir: any = "down";
-          if (Math.abs(dx) > Math.abs(dy)) dir = dx > 0 ? "right" : "left";
-          else dir = dy > 0 ? "down" : "up";
-
-          callbacks.triggerAttackAnim(
-            e.position.x,
-            e.position.y,
-            dir,
-            "slash_enemy"
-          );
-          attackTimer = 0;
-        }
-      }
-      // Poursuite avec Wall Sliding (Glissement)
-      else if (dist < 18) {
-        // Distance d'agro augmentée
-        const moveX = (dx / dist) * speed * dtSec;
-        const moveY = (dy / dist) * speed * dtSec;
-        tryMoveEntity(e, moveX, moveY, map, enemies, player);
+        const angle = Math.atan2(vecY, vecX);
+        callbacks.addProjectile({
+          id: `proj_${Math.random()}`,
+          startX: e.position.x + Math.cos(angle) * 0.6,
+          startY: e.position.y + Math.sin(angle) * 0.6,
+          targetX: player.position.x,
+          targetY: player.position.y,
+          damage: e.stats.attack,
+          color: e.projectileColor || "#ef4444",
+          speed: 0.15,
+          isEnemy: true,
+          projectileType: behavior === "caster" ? "fireball" : "arrow",
+          explodeOnHit: behavior === "caster",
+          radius: 2,
+          progress: 0,
+          trail: [],
+        });
+      } else if (distToPlayer <= 1.2) {
+        newAttackTimer = 0;
+        const dmg = Math.max(
+          1,
+          e.stats.attack - Math.floor(player.stats.defense / 2)
+        );
+        callbacks.damagePlayer(dmg);
+        callbacks.addEffects(
+          player.position.x,
+          player.position.y,
+          "#ef4444",
+          10,
+          `-${dmg}`
+        );
+        callbacks.shakeScreen(3);
+        callbacks.triggerAttackAnim(
+          e.position.x,
+          e.position.y,
+          getFaceDir(vecX, vecY),
+          "slash_enemy"
+        );
       }
     }
 
-    return { ...e, moveTimer: attackTimer };
+    return {
+      ...e,
+      position: { x: nextX, y: nextY },
+      moveTimer: newMoveTimer,
+      attackTimer: newAttackTimer,
+    };
   });
+};
+
+// --- CERVEAU DU BOSS ---
+function handleBossAI(
+  boss: Entity,
+  player: Entity,
+  map: MapTile[][],
+  dist: number,
+  dtSec: number,
+  attackTimer: number,
+  callbacks: CombatCallbacks
+): Entity {
+  const isEnraged = boss.stats.hp < boss.stats.maxHp * 0.5;
+  const speedMult = isEnraged ? 1.5 : 1.0;
+
+  // Feedback visuel de rage (Fumée rouge)
+  if (isEnraged && Math.random() < 0.1) {
+    callbacks.spawnParticles(
+      boss.position.x,
+      boss.position.y,
+      "#ef4444",
+      3,
+      "spark"
+    );
+  }
+
+  // 1. Mouvement (Toujours vers le joueur, mais lent et implacable)
+  let speed = (boss.stats.speed || 0.8) * speedMult * 2.0;
+  const vecX = player.position.x - boss.position.x;
+  const vecY = player.position.y - boss.position.y;
+  const len = Math.sqrt(vecX * vecX + vecY * vecY);
+  const dirX = len > 0 ? vecX / len : 0;
+  const dirY = len > 0 ? vecY / len : 0;
+
+  // Le boss ne recule jamais
+  let dx = dirX * speed * dtSec;
+  let dy = dirY * speed * dtSec;
+
+  let nextX = boss.position.x;
+  let nextY = boss.position.y;
+
+  // Collision simple boss
+  if (!isWall(map, nextX + dx, nextY + dy)) {
+    nextX += dx;
+    nextY += dy;
+  } else if (!isWall(map, nextX + dx, nextY)) {
+    nextX += dx;
+  } else if (!isWall(map, nextX, nextY + dy)) {
+    nextY += dy;
+  }
+
+  // 2. Attaques Spéciales
+  // Les boss ont des cooldowns plus rapides en phase 2
+  const cooldown = isEnraged ? 2000 : 3000;
+
+  if (attackTimer > cooldown) {
+    const hasLOS = checkLineOfSight(
+      map,
+      boss.position.x,
+      boss.position.y,
+      player.position.x,
+      player.position.y
+    );
+
+    if (hasLOS) {
+      attackTimer = 0; // Reset
+      callbacks.triggerAttackAnim(
+        boss.position.x,
+        boss.position.y,
+        getFaceDir(vecX, vecY),
+        "cast_enemy"
+      );
+
+      const roll = Math.random();
+
+      // PATTERN 1 : NOVA (Cercle de projectiles) - 40% chance (60% si enragé)
+      if (roll < (isEnraged ? 0.6 : 0.4)) {
+        callbacks.addLog(`${boss.name} déchaîne son pouvoir !`);
+        callbacks.shakeScreen(5);
+        const count = isEnraged ? 12 : 8;
+        for (let i = 0; i < count; i++) {
+          const angle = (Math.PI * 2 * i) / count;
+          callbacks.addProjectile({
+            id: `boss_nova_${Math.random()}`,
+            startX: boss.position.x,
+            startY: boss.position.y,
+            targetX: boss.position.x + Math.cos(angle) * 10,
+            targetY: boss.position.y + Math.sin(angle) * 10,
+            damage: boss.stats.attack,
+            color: isEnraged ? "#ef4444" : "#a855f7",
+            speed: 0.12,
+            isEnemy: true,
+            projectileType: "fireball",
+            explodeOnHit: true,
+            radius: 2,
+            progress: 0,
+            trail: [],
+          });
+        }
+      }
+      // PATTERN 2 : SHOTGUN (Tir multiple vers le joueur) - 30% chance
+      else if (roll < 0.7) {
+        const baseAngle = Math.atan2(vecY, vecX);
+        const count = 5;
+        const spread = 0.5; // radians
+        for (let i = 0; i < count; i++) {
+          const angle = baseAngle - spread / 2 + (spread * i) / (count - 1);
+          callbacks.addProjectile({
+            id: `boss_shot_${Math.random()}`,
+            startX: boss.position.x + Math.cos(angle),
+            startY: boss.position.y + Math.sin(angle),
+            targetX: boss.position.x + Math.cos(angle) * 15,
+            targetY: boss.position.y + Math.sin(angle) * 15,
+            damage: Math.floor(boss.stats.attack * 0.8),
+            color: "#fbbf24", // Or/Feu
+            speed: 0.25, // Rapide
+            isEnemy: true,
+            projectileType: "arrow",
+            progress: 0,
+            trail: [],
+          });
+        }
+      }
+      // PATTERN 3 : CHARGE / MELEE (Si proche)
+      else if (dist < 2.5) {
+        const dmg = Math.floor(boss.stats.attack * 1.5);
+        callbacks.damagePlayer(dmg);
+        callbacks.addEffects(
+          player.position.x,
+          player.position.y,
+          "#dc2626",
+          15,
+          `-${dmg} CRIT`
+        );
+        callbacks.shakeScreen(10);
+      }
+    }
+  }
+
+  return {
+    ...boss,
+    position: { x: nextX, y: nextY },
+    moveTimer: (boss.moveTimer || 0) + dtSec * 1000,
+    attackTimer,
+  };
 }
 
-// Fonction de mouvement intelligente avec "Slide" (Glissement sur les murs)
-function tryMoveEntity(
-  e: any,
-  dx: number,
-  dy: number,
-  map: Tile[][],
-  enemies: Entity[],
-  player: Entity
-) {
-  const nextX = e.position.x + dx;
-  const nextY = e.position.y + dy;
+// Helpers
+function isWall(map: MapTile[][], x: number, y: number): boolean {
+  const tX = Math.round(x);
+  const tY = Math.round(y);
+  if (tY < 0 || tY >= map.length || tX < 0 || tX >= map[0].length) return true;
+  return map[tY][tX]?.type === "wall";
+}
 
-  // 1. Essai direct (Diagonale)
-  // AJOUT : on passe e.id pour ignorer l'auto-collision
-  if (isValidMove(map, enemies, nextX, nextY, player, e.id)) {
-    e.position.x = nextX;
-    e.position.y = nextY;
-    return;
-  }
-
-  // 2. Si bloqué, on essaie de glisser sur l'axe X uniquement
-  if (
-    Math.abs(dx) > 0.001 &&
-    isValidMove(map, enemies, e.position.x + dx, e.position.y, player, e.id)
-  ) {
-    e.position.x += dx;
-    return;
-  }
-
-  // 3. Sinon on essaie de glisser sur l'axe Y uniquement
-  if (
-    Math.abs(dy) > 0.001 &&
-    isValidMove(map, enemies, e.position.x, e.position.y + dy, player, e.id)
-  ) {
-    e.position.y += dy;
-    return;
-  }
-
-  // Si tout est bloqué, l'ennemi attend
+function getFaceDir(vx: number, vy: number): any {
+  if (Math.abs(vx) > Math.abs(vy)) return vx > 0 ? "right" : "left";
+  return vy > 0 ? "down" : "up";
 }

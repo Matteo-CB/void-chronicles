@@ -9,12 +9,17 @@ export type GameState =
   | "gameover"
   | "dialogue"
   | "spellbook"
-  | "levelup";
+  | "levelup"
+  | "pause_menu" // AJOUTÉ (Indispensable pour le fix)
+  | "management_menu"; // AJOUTÉ (Indispensable pour le fix)
 
 export interface Position {
   x: number;
   y: number;
 }
+
+// Alias pour compatibilité
+export type MapTile = Tile;
 
 export type BiomeType = "cave" | "ruins" | "volcano" | "crystal";
 
@@ -80,10 +85,17 @@ export interface Entity {
   visualScale: number;
 
   // IA & Combat
-  aiBehavior?: string;
+  aiBehavior?: "chaser" | "archer" | "caster" | "tank" | "boss" | "static";
   range?: number;
   projectileColor?: string;
   moveTimer?: number;
+
+  // IA Properties
+  attackTimer?: number;
+  attackCooldown?: number;
+  aggroRange?: number;
+  minDistance?: number;
+
   statusEffects?: string[];
   knockbackX?: number;
   knockbackY?: number;
@@ -106,8 +118,6 @@ export interface Item {
   color?: string;
   visualColor?: string;
   rarity?: Rarity;
-
-  // Spécifique Arme
   weaponType?: WeaponType;
   range?: number;
   onHitEffect?: { type: string; chance: number; value: number };
@@ -117,8 +127,6 @@ export interface Item {
     duration: number;
     power: number;
   };
-
-  // Spécifique Grimoire
   spellId?: string;
 }
 
@@ -131,10 +139,25 @@ export interface Equipment {
 // --- SYSTÈME DE PROGRESSION ---
 
 export interface Player {
-  // Subset de PlayerState utilisé pour les effets (perks/masteries)
   stats: Stats;
   xp: number;
-  // On peut ajouter d'autres champs si nécessaire
+  gold: number;
+  attributePoints: number;
+  masteryPoints: number;
+  level: number;
+  xpToNext: number;
+  direction: Direction;
+  position: Position;
+  equipment: Equipment;
+  inventory: (Item | null)[];
+
+  spells: Spell[];
+  learnedSpells: string[];
+  equippedSpells: (string | null)[];
+
+  masteries: Mastery[];
+  lastAttackTime?: number;
+  statusEffects: string[];
 }
 
 export interface Perk {
@@ -204,6 +227,7 @@ export interface Particle {
   size: number;
   vx: number;
   vy: number;
+  type?: "blood" | "spark" | "normal";
 }
 
 export interface FloatingText {
@@ -230,6 +254,7 @@ export interface Tile {
   y: number;
   type: "floor" | "wall";
   visibility: "visible" | "hidden" | "fog";
+  lightLevel?: number;
 }
 
 export interface LevelTheme {

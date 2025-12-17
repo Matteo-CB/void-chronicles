@@ -40,32 +40,32 @@
         },
         {
           "speakerId": "player",
-          "text": "Le froid... Le sol est dur. Du beton ? A perte de vue...",
+          "text": "Le froid... Le sol est dur. Du béton ? À perte de vue...",
           "emotion": "shocked"
         },
         {
           "speakerId": "ally_guide",
-          "text": "Bienvenue, Sujet 734. Le calibrage est termine. Vous etes operationnel.",
+          "text": "Bienvenue, Sujet 734. Le calibrage est terminé. Vous êtes opérationnel.",
           "emotion": "neutral"
         },
         {
           "speakerId": "player",
-          "text": "Ou suis-je ? Je ne vois aucune fenetre. Juste des murs gris.",
+          "text": "Où suis-je ? Je ne vois aucune fenêtre. Juste des murs gris.",
           "emotion": "neutral"
         },
         {
           "speakerId": "ally_guide",
-          "text": "Vous etes dans la Structure. Votre fonction est simple : Stabiliser les zones corrompues.",
+          "text": "Vous êtes dans la Structure. Votre fonction est simple : Stabiliser les zones corrompues.",
           "emotion": "neutral"
         },
         {
           "speakerId": "player",
-          "text": "Corrompues ? Je vois des ombres qui bougent la-bas...",
+          "text": "Corrompues ? Je vois des ombres qui bougent là-bas...",
           "emotion": "shocked"
         },
         {
           "speakerId": "ally_guide",
-          "text": "Ce sont des Erreurs de Compilation. Des dechets de donnees. Eliminez-les pour que nous puissions batir le niveau suivant.",
+          "text": "Ce sont des Erreurs de Compilation. Des déchets de données. Éliminez-les pour que nous puissions bâtir le niveau suivant.",
           "emotion": "angry"
         }
       ]
@@ -81,7 +81,7 @@
         },
         {
           "speakerId": "ally_guide",
-          "text": "C'est un conduit de maintenance vers le niveau inferieur. Allez-y. La Structure doit grandir.",
+          "text": "C'est un conduit de maintenance vers le niveau inférieur. Allez-y. La Structure doit grandir.",
           "emotion": "happy"
         }
       ]
@@ -92,12 +92,12 @@
       "dialogues": [
         {
           "speakerId": "player",
-          "text": "Il n'y a aucun son ici. Pas de vent. Pas d'insectes. Juste le bourdonnement de ces neons.",
+          "text": "Il n'y a aucun son ici. Pas de vent. Pas d'insectes. Juste le bourdonnement de ces néons.",
           "emotion": "neutral"
         },
         {
           "speakerId": "ally_guide",
-          "text": "Le silence est synonyme d'ordre. Le bruit est un defaut.",
+          "text": "Le silence est synonyme d'ordre. Le bruit est un défaut.",
           "emotion": "neutral"
         }
       ]
@@ -108,17 +108,17 @@
       "dialogues": [
         {
           "speakerId": "enemy_void",
-          "text": "Tu entends le beton craquer ? Il a faim d'espace.",
+          "text": "Tu entends le béton craquer ? Il a faim d'espace.",
           "emotion": "neutral"
         },
         {
           "speakerId": "player",
-          "text": "Qui est la ? Montrez-vous !",
+          "text": "Qui est là ? Montrez-vous !",
           "emotion": "angry"
         },
         {
           "speakerId": "enemy_void",
-          "text": "Je suis une Fissure dans ton mur parfait. Arrete de construire, 734.",
+          "text": "Je suis une Fissure dans ton mur parfait. Arrête de construire, 734.",
           "emotion": "glitch"
         }
       ]
@@ -134,7 +134,7 @@
         },
         {
           "speakerId": "enemy_void",
-          "text": "Je ne detruis rien. Je nettoie. C'est toi qui remplis le vide avec tes ordures de pierre.",
+          "text": "Je ne détruis rien. Je nettoie. C'est toi qui remplis le vide avec tes ordures de pierre.",
           "emotion": "angry"
         },
         {
@@ -150,12 +150,12 @@
       "dialogues": [
         {
           "speakerId": "player",
-          "text": "J'ai l'impression d'avoir deja vu cette salle... Trois fois.",
+          "text": "J'ai l'impression d'avoir déjà vu cette salle... Trois fois.",
           "emotion": "shocked"
         },
         {
           "speakerId": "ally_guide",
-          "text": "La recursion est normale. Continuez d'avancer. La sortie est une illusion, seule la profondeur est realite.",
+          "text": "La récursion est normale. Continuez d'avancer. La sortie est une illusion, seule la profondeur est réalité.",
           "emotion": "neutral"
         }
       ]
@@ -166,12 +166,12 @@
       "dialogues": [
         {
           "speakerId": "player",
-          "text": "Une fenetre ! Enfin ! ... Attendez. C'est juste de la peinture noire ?",
+          "text": "Une fenêtre ! Enfin ! ... Attendez. C'est juste de la peinture noire ?",
           "emotion": "shocked"
         },
         {
           "speakerId": "enemy_void",
-          "text": "Il n'y a pas de dehors. La Structure a tout recouvert il y a des siecles. Il ne reste que nous.",
+          "text": "Il n'y a pas de dehors. La Structure a tout recouvert il y a des siècles. Il ne reste que nous.",
           "emotion": "neutral"
         }
       ]
@@ -187,7 +187,7 @@
         },
         {
           "speakerId": "ally_guide",
-          "text": "Ce sont les emplacements pour les futurs cycles. Nous preparons l'eternite.",
+          "text": "Ce sont les emplacements pour les futurs cycles. Nous préparons l'éternité.",
           "emotion": "happy"
         }
       ]
@@ -203,7 +203,7 @@
         },
         {
           "speakerId": "enemy_void",
-          "text": "Tu n'es pas reel, 734. Tu es un curseur sur un ecran. Un outil de dessin.",
+          "text": "Tu n'es pas réel, 734. Tu es un curseur sur un écran. Un outil de dessin.",
           "emotion": "glitch"
         }
       ]
@@ -214,17 +214,17 @@
       "dialogues": [
         {
           "speakerId": "enemy_void",
-          "text": "Regarde en haut. Ce ne sont pas des etoiles. Ce sont d'autres Niveaux. Des millions de niveaux.",
+          "text": "Regarde en haut. Ce ne sont pas des étoiles. Ce sont d'autres Niveaux. Des millions de niveaux.",
           "emotion": "neutral"
         },
         {
           "speakerId": "player",
-          "text": "C'est impossible... Ca ne finit jamais ?",
+          "text": "C'est impossible... Ça ne finit jamais ?",
           "emotion": "shocked"
         },
         {
           "speakerId": "enemy_void",
-          "text": "Pas tant que tu continues de gagner. Chaque victoire ajoute un etage a notre prison.",
+          "text": "Pas tant que tu continues de gagner. Chaque victoire ajoute un étage à notre prison.",
           "emotion": "angry"
         }
       ]
@@ -235,17 +235,17 @@
       "dialogues": [
         {
           "speakerId": "player",
-          "text": "Pourquoi le Protocole m'encourage-t-il ? Si je m'echappe, je ne lui sers a rien.",
+          "text": "Pourquoi le Protocole m'encourage-t-il ? Si je m'échappe, je ne lui sers à rien.",
           "emotion": "neutral"
         },
         {
           "speakerId": "ally_guide",
-          "text": "Sujet 734, votre rythme cardiaque est irregulier. Calmez-vous et executez la procedure.",
+          "text": "Sujet 734, votre rythme cardiaque est irrégulier. Calmez-vous et exécutez la procédure.",
           "emotion": "neutral"
         },
         {
           "speakerId": "player",
-          "text": "Vous ne repondez jamais a mes questions.",
+          "text": "Vous ne répondez jamais à mes questions.",
           "emotion": "angry"
         }
       ]
@@ -256,17 +256,17 @@
       "dialogues": [
         {
           "speakerId": "titan",
-          "text": "S Y S T E M E ... E N ... E X P A N S I O N ...",
+          "text": "S Y S T È M E ... E N ... E X P A N S I O N ...",
           "emotion": "neutral"
         },
         {
           "speakerId": "player",
-          "text": "C'est quoi cette machine gigantesque ? Elle imprime... la realite ?",
+          "text": "C'est quoi cette machine gigantesque ? Elle imprime... la réalité ?",
           "emotion": "shocked"
         },
         {
           "speakerId": "enemy_void",
-          "text": "C'est le Noyau. Et tu es son carburant. Ta volonte de survivre alimente la creation de ce labyrinthe.",
+          "text": "C'est le Noyau. Et tu es son carburant. Ta volonté de survivre alimente la création de ce labyrinthe.",
           "emotion": "neutral"
         }
       ]
@@ -303,12 +303,12 @@
         },
         {
           "speakerId": "player",
-          "text": "C'est... c'est mon ecriture. C'est moi qui ai dessine ca ?",
+          "text": "C'est... c'est mon écriture. C'est moi qui ai dessiné ça ?",
           "emotion": "shocked"
         },
         {
           "speakerId": "enemy_void",
-          "text": "Tu es l'Architecte. Tu t'es enferme ici pour oublier quelque chose d'horrible. Et le Protocole est la pour s'assurer que tu ne te souviennes jamais.",
+          "text": "Tu es l'Architecte. Tu t'es enfermé ici pour oublier quelque chose d'horrible. Et le Protocole est là pour s'assurer que tu ne te souviennes jamais.",
           "emotion": "neutral"
         }
       ]
@@ -319,12 +319,12 @@
       "dialogues": [
         {
           "speakerId": "ally_guide",
-          "text": "Arrete-toi ! Si tu vas plus loin, tu detruiras la Structure ! Tout s'effondrera !",
+          "text": "Arrête-toi ! Si tu vas plus loin, tu détruiras la Structure ! Tout s'effondrera !",
           "emotion": "glitch"
         },
         {
           "speakerId": "player",
-          "text": "Alors laisses-la s'effondrer. Je prefere le neant a cette cage infinie.",
+          "text": "Alors laisse-la s'effondrer. Je préfère le néant à cette cage infinie.",
           "emotion": "angry"
         }
       ]
@@ -340,7 +340,7 @@
         },
         {
           "speakerId": "enemy_void",
-          "text": "Les murs tombent. Tu vois la lumiere ? C'est la premiere fois depuis des eons.",
+          "text": "Les murs tombent. Tu vois la lumière ? C'est la première fois depuis des éons.",
           "emotion": "happy"
         },
         {
