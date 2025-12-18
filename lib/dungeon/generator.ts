@@ -1,49 +1,55 @@
 import { Tile, Entity, Stats, LevelTheme } from "@/types/game";
 import { LEVELS } from "../data/levels";
-import { Room, MAX_ROOMS, ROOM_MIN_SIZE, ROOM_MAX_SIZE } from "./types";
+import {
+  Room,
+  MAX_ROOMS,
+  ROOM_MIN_SIZE,
+  ROOM_MAX_SIZE,
+  RoomType,
+} from "./types";
 import {
   spawnEntitiesInRoom,
   spawnBossInArena,
   ensureMinimumEnemies,
-  spawnDecorations,
 } from "./spawner";
 import { generateLoot } from "@/lib/data/items";
+import { createDecoration } from "../data/decorations";
+import { NPC_DB } from "../data/npcs"; // Import Nouveaux PNJ
 
-// --- CONFIGURATION DES BIOMES (NOUVEAU) ---
+// --- CONFIGURATION DES BIOMES ---
 const BIOMES: Record<string, LevelTheme> = {
   CRYPT: {
     name: "Crypte Oubliée",
-    floorColor: "#27272a", // Zinc-800
-    wallColor: "#52525b", // Zinc-600
+    floorColor: "#27272a",
+    wallColor: "#52525b",
     wallSideColor: "#3f3f46",
   },
   SEWERS: {
     name: "Égouts Toxiques",
-    floorColor: "#064e3b", // Emerald-900
-    wallColor: "#10b981", // Emerald-500
+    floorColor: "#064e3b",
+    wallColor: "#10b981",
     wallSideColor: "#047857",
   },
   RUINS: {
     name: "Ruines Antiques",
-    floorColor: "#451a03", // Amber-950
-    wallColor: "#d97706", // Amber-600
+    floorColor: "#451a03",
+    wallColor: "#d97706",
     wallSideColor: "#92400e",
   },
   VOLCANO: {
     name: "Cœur de Magma",
-    floorColor: "#450a0a", // Red-950
-    wallColor: "#ef4444", // Red-500
+    floorColor: "#450a0a",
+    wallColor: "#ef4444",
     wallSideColor: "#991b1b",
   },
   BOSS_ROOM: {
     name: "Antre du Titan",
-    floorColor: "#312e81", // Indigo-900
-    wallColor: "#6366f1", // Indigo-500
+    floorColor: "#312e81",
+    wallColor: "#6366f1",
     wallSideColor: "#4338ca",
   },
 };
 
-// --- STATS CONSTANTS (CONSERVÉS) ---
 const STAIRS_STATS: Stats = {
   hp: 1000,
   maxHp: 1000,
@@ -69,7 +75,6 @@ const STAIRS_STATS: Stats = {
   accuracy: 0,
   arcane: 0,
 };
-
 const MERCHANT_STATS: Stats = {
   hp: 9999,
   maxHp: 9999,
@@ -100,21 +105,21 @@ export function generateDungeon(level: number): {
   map: Tile[][];
   spawn: { x: number; y: number };
   entities: Entity[];
-  levelConfig: LevelTheme; // Changement de type pour inclure les couleurs
+  levelConfig: LevelTheme;
 } {
   // 1. CHOIX DU BIOME
-  let theme = BIOMES.CRYPT;
-  if (level % 5 === 0) theme = BIOMES.BOSS_ROOM;
-  else if (level > 10) theme = BIOMES.VOLCANO;
-  else if (level > 5) theme = BIOMES.RUINS;
-  else if (level > 2) theme = BIOMES.SEWERS;
+  let themeKey = "CRYPT";
+  if (level % 5 === 0) themeKey = "BOSS_ROOM";
+  else if (level > 10) themeKey = "VOLCANO";
+  else if (level > 5) themeKey = "RUINS";
+  else if (level > 2) themeKey = "SEWERS";
 
+  const theme = BIOMES[themeKey];
   const config = LEVELS[Math.min(LEVELS.length - 1, Math.max(0, level - 1))];
-  // On augmente la taille de la map avec les niveaux pour l'aspect "Exploration longue"
+
   const width = Math.min(60, config.width + Math.floor(level / 2));
   const height = Math.min(40, config.height + Math.floor(level / 2));
 
-  // --- BRANCHEMENT BOSS (NOUVEAU) ---
   if (level % 5 === 0) {
     return generateBossLevel(width, height, level, theme);
   }
@@ -124,7 +129,7 @@ export function generateDungeon(level: number): {
   let entities: Entity[] = [];
   let attempts = 0;
 
-  // 2. GÉNÉRATION PROCEDURALE (Code Original Conservé)
+  // 2. GÉNÉRATION PROCEDURALE
   do {
     attempts++;
     map = Array(height)
@@ -138,7 +143,6 @@ export function generateDungeon(level: number): {
     entities = [];
 
     for (let i = 0; i < MAX_ROOMS + Math.floor(level / 3); i++) {
-      // Plus de salles haut niveau
       const w =
         Math.floor(Math.random() * (ROOM_MAX_SIZE - ROOM_MIN_SIZE + 1)) +
         ROOM_MIN_SIZE;
@@ -148,7 +152,7 @@ export function generateDungeon(level: number): {
       const x = Math.floor(Math.random() * (width - w - 2)) + 1;
       const y = Math.floor(Math.random() * (height - h - 2)) + 1;
 
-      const newRoom: Room = { x, y, w, h };
+      const newRoom: Room = { x, y, w, h, roomType: "normal" };
       let failed = false;
 
       for (const other of rooms) {
@@ -168,10 +172,24 @@ export function generateDungeon(level: number): {
         if (rooms.length > 0) {
           connectRooms(map, rooms[rooms.length - 1], newRoom);
         }
+
+        // ATTRIBUTION TYPE DE SALLE
+        if (rooms.length === 0) newRoom.roomType = "spawn";
+        else {
+          const rand = Math.random();
+          if (rand < 0.15) newRoom.roomType = "storage";
+          else if (rand < 0.3) newRoom.roomType = "library";
+          else if (rand < 0.4 && w > 8 && h > 8) newRoom.roomType = "arena";
+          else if (rand < 0.5) newRoom.roomType = "garden";
+          else newRoom.roomType = "normal";
+        }
+
         rooms.push(newRoom);
       }
     }
-  } while (rooms.length < 4 && attempts < 50); // Sécurité augmentée
+  } while (rooms.length < 4 && attempts < 50);
+
+  if (rooms.length > 0) rooms[rooms.length - 1].roomType = "exit";
 
   // 3. SPAWN JOUEUR
   const spawnRoom = rooms[0];
@@ -180,21 +198,40 @@ export function generateDungeon(level: number): {
     y: spawnRoom.y + Math.floor(spawnRoom.h / 2),
   };
 
-  // 4. PEUPLEMENT (Logic Originale + Nouveaux Appels)
+  // --- SPAWN PNJ (GARDE) AU NIVEAU 1 ---
+  if (level === 1) {
+    const npcConfig = NPC_DB.WOUNDED_GUARD;
+    // On le place un peu à côté du spawn
+    entities.push({
+      id: "npc_guard_start",
+      type: "npc",
+      name: npcConfig.name!,
+      spriteKey: npcConfig.spriteKey!,
+      position: { x: spawn.x + 2, y: spawn.y + 1 }, // Décalé
+      stats: npcConfig.stats!,
+      isHostile: false,
+      visualScale: 1,
+      dialogueId: npcConfig.dialogueId,
+      rarityColor: npcConfig.rarityColor,
+    } as Entity);
+  }
+
+  // 4. REMPLISSAGE & DÉCORATION AVANCÉE
   if (rooms.length > 0) {
     rooms.forEach((room, index) => {
+      fillSpecialRoom(room, entities, themeKey); // Décoration thématique
+
       if (index > 0) {
-        // On passe le thème pour adapter les ennemis si besoin
         spawnEntitiesInRoom(room, level, entities, config);
       }
     });
 
-    spawnDecorations(rooms, entities, config);
+    decorateContextual(map, entities, themeKey);
     ensureMinimumEnemies(entities, rooms, level, config);
 
-    // B. Coffres (Code Original)
+    // Coffres & Marchand (Code Original préservé)
     rooms.forEach((room, idx) => {
-      if (idx > 0 && Math.random() < 0.3) {
+      if (idx > 0 && room.roomType !== "arena" && Math.random() < 0.3) {
         const cx = room.x + Math.floor(room.w / 2);
         const cy = room.y + Math.floor(room.h / 2);
         if (!entities.some((e) => e.position.x === cx && e.position.y === cy)) {
@@ -213,12 +250,11 @@ export function generateDungeon(level: number): {
       }
     });
 
-    // C. Marchand (Code Original)
+    // ... (Reste de la logique Marchand et Sortie inchangée)
     if (rooms.length > 2) {
       let merchantRoomIndex =
         Math.floor(Math.random() * (rooms.length - 1)) + 1;
       if (merchantRoomIndex === 0) merchantRoomIndex = 1;
-
       const merchantRoom = rooms[merchantRoomIndex];
       const mx = merchantRoom.x + Math.floor(merchantRoom.w / 2);
       const my = merchantRoom.y + Math.floor(merchantRoom.h / 2);
@@ -241,15 +277,12 @@ export function generateDungeon(level: number): {
       }
     }
 
-    // D. Sortie (Code Original Sécurisé)
     const exitRoom = rooms[rooms.length - 1];
     let sx = exitRoom.x + Math.floor(exitRoom.w / 2);
     let sy = exitRoom.y + Math.floor(exitRoom.h / 2);
-
     if (sx === spawn.x && sy === spawn.y) {
       sx = Math.min(width - 2, sx + 2);
     }
-
     let safetyLoop = 0;
     while (
       entities.some((e) => e.position.x === sx && e.position.y === sy) &&
@@ -262,7 +295,6 @@ export function generateDungeon(level: number): {
       }
       safetyLoop++;
     }
-
     entities.push({
       id: "stairs_exit",
       type: "stairs",
@@ -272,14 +304,19 @@ export function generateDungeon(level: number): {
       stats: STAIRS_STATS,
       isHostile: false,
       visualScale: 1,
-      isHidden: true, // Doit tuer les ennemis pour ouvrir
+      isHidden: true,
     });
   }
 
-  // 5. --- NETTOYAGE CRITIQUE (CONSERVÉ ET RENFORCÉ) ---
+  // 5. NETTOYAGE
   const SAFE_RADIUS = 8;
   entities = entities.filter((e) => {
-    if (e.type === "stairs" || e.type === "merchant" || e.type === "chest")
+    if (
+      e.type === "stairs" ||
+      e.type === "merchant" ||
+      e.type === "chest" ||
+      e.type === "npc"
+    )
       return true;
     const dist = Math.sqrt(
       Math.pow(e.position.x - spawn.x, 2) + Math.pow(e.position.y - spawn.y, 2)
@@ -290,7 +327,6 @@ export function generateDungeon(level: number): {
 
   const occupiedPositions = new Set<string>();
   occupiedPositions.add(`${spawn.x},${spawn.y}`);
-
   entities = entities.filter((e) => {
     const key = `${Math.round(e.position.x)},${Math.round(e.position.y)}`;
     if (occupiedPositions.has(key)) {
@@ -304,7 +340,88 @@ export function generateDungeon(level: number): {
   return { map, spawn, entities, levelConfig: theme };
 }
 
-// --- GÉNÉRATEUR D'ARÈNE DE BOSS (NOUVEAU) ---
+// --- FONCTIONS DE DÉCORATION AVANCÉES ---
+
+function fillSpecialRoom(room: Room, entities: Entity[], biome: string) {
+  if (room.roomType === "spawn" || room.roomType === "exit") return;
+
+  const centerX = Math.floor(room.x + room.w / 2);
+  const centerY = Math.floor(room.y + room.h / 2);
+
+  if (room.roomType === "storage") {
+    const decor = Math.random() > 0.5 ? "BARREL" : "CRATE";
+    safeAddDecoration(decor, room.x, room.y, entities);
+    safeAddDecoration(decor, room.x + room.w - 1, room.y, entities);
+    safeAddDecoration(decor, room.x, room.y + room.h - 1, entities);
+    safeAddDecoration(
+      decor,
+      room.x + room.w - 1,
+      room.y + room.h - 1,
+      entities
+    );
+  } else if (room.roomType === "library" && room.h > 5) {
+    for (let x = room.x + 1; x < room.x + room.w - 1; x += 2) {
+      safeAddDecoration("BOOKSHELF", x, room.y, entities);
+    }
+  } else if (room.roomType === "arena") {
+    safeAddDecoration("PILLAR", centerX - 2, centerY - 2, entities);
+    safeAddDecoration("PILLAR", centerX + 2, centerY - 2, entities);
+    safeAddDecoration("PILLAR", centerX - 2, centerY + 2, entities);
+    safeAddDecoration("PILLAR", centerX + 2, centerY + 2, entities);
+  } else if (room.roomType === "garden") {
+    const plant = biome === "CRYPT" ? "BONES" : "GRASS";
+    for (let i = 0; i < 5; i++) {
+      const rx = room.x + 1 + Math.floor(Math.random() * (room.w - 2));
+      const ry = room.y + 1 + Math.floor(Math.random() * (room.h - 2));
+      safeAddDecoration(plant, rx, ry, entities);
+    }
+  }
+}
+
+function decorateContextual(map: Tile[][], entities: Entity[], biome: string) {
+  const height = map.length;
+  const width = map[0].length;
+
+  for (let y = 1; y < height - 1; y++) {
+    for (let x = 1; x < width - 1; x++) {
+      const tile = map[y][x];
+
+      if (tile.type === "wall") {
+        const below = map[y + 1]?.[x];
+        if (below && below.type === "floor") {
+          // Torches murales
+          if (Math.random() < 0.05) {
+            // Pour l'instant on ne met pas d'entité murale, ça complexifie le rendu
+          }
+        }
+      } else if (tile.type === "floor") {
+        // Débris au sol
+        if (Math.random() < 0.03) {
+          const decor =
+            biome === "RUINS"
+              ? "CRACK"
+              : biome === "SEWERS"
+              ? "PIPE"
+              : "RUBBLE";
+          safeAddDecoration(decor, x, y, entities);
+        }
+      }
+    }
+  }
+}
+
+function safeAddDecoration(
+  key: string,
+  x: number,
+  y: number,
+  entities: Entity[]
+) {
+  if (!entities.some((e) => e.position.x === x && e.position.y === y)) {
+    entities.push(createDecoration(key, x, y));
+  }
+}
+
+// --- GÉNÉRATEUR BOSS (INCHANGÉ) ---
 function generateBossLevel(
   width: number,
   height: number,
@@ -317,10 +434,8 @@ function generateBossLevel(
       Array(width)
         .fill(null)
         .map((_, x) => {
-          // Murs extérieurs
           if (x === 0 || y === 0 || x === width - 1 || y === height - 1)
             return { x, y, type: "wall", visibility: "hidden" };
-          // Piliers
           if (
             x % 8 === 0 &&
             y % 8 === 0 &&
@@ -336,11 +451,7 @@ function generateBossLevel(
 
   const spawn = { x: 4, y: Math.floor(height / 2) };
   const entities: Entity[] = [];
-
-  // Spawn du Boss via le spawner
   spawnBossInArena(level, width, height, entities);
-
-  // Ajout sortie secrète
   entities.push({
     id: "stairs_exit_boss",
     type: "stairs",
@@ -352,11 +463,10 @@ function generateBossLevel(
     isHidden: true,
     visualScale: 1,
   });
-
   return { map, spawn, entities, levelConfig: theme };
 }
 
-// --- UTILITAIRES (CONSERVÉS) ---
+// --- UTILITAIRES (INCHANGÉS) ---
 export function createRoom(map: Tile[][], room: Room) {
   for (let y = room.y; y < room.y + room.h; y++) {
     for (let x = room.x; x < room.x + room.w; x++) {

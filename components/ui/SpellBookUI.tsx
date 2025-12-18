@@ -1,6 +1,6 @@
 import useGameStore from "@/store/gameStore";
 import { useEffect, useRef } from "react";
-import { Zap, BookOpen, Skull } from "lucide-react";
+import { Zap, BookOpen, Skull, Gamepad2 } from "lucide-react";
 
 export default function SpellBookUI() {
   const { player, menuSelectionIndex, inputMethod } = useGameStore(
@@ -15,8 +15,6 @@ export default function SpellBookUI() {
       if (el) el.scrollIntoView({ block: "nearest", behavior: "smooth" });
     }
   }, [menuSelectionIndex]);
-
-  const confirmKey = inputMethod === "gamepad" ? "A" : "ENTRÉE";
 
   return (
     <div className="absolute inset-0 bg-black/95 flex items-center justify-center z-50 backdrop-blur-md animate-in fade-in duration-300 font-pixel">
@@ -103,12 +101,41 @@ export default function SpellBookUI() {
                     </div>
                   )}
 
+                  {/* ACTIONS CONTEXTUELLES */}
                   {isSelected && (
-                    <div className="absolute right-2 bottom-2 text-[9px] text-purple-400 font-bold animate-pulse flex items-center gap-1">
-                      <span>ÉQUIPER</span>
-                      <span className="bg-purple-600 text-white px-1 rounded text-[8px]">
-                        {confirmKey}
-                      </span>
+                    <div className="absolute right-2 bottom-2 text-[9px] font-bold animate-in fade-in slide-in-from-right-2 flex flex-col items-end gap-1">
+                      {inputMethod === "gamepad" ? (
+                        <>
+                          <div className="flex items-center gap-1 text-purple-300">
+                            <span>Slot 1</span>
+                            <span className="bg-green-600 text-white w-4 h-4 flex items-center justify-center rounded-full text-[8px] shadow-sm border border-green-400">
+                              A
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1 text-blue-300">
+                            <span>Slot 2</span>
+                            <span className="bg-blue-600 text-white w-4 h-4 flex items-center justify-center rounded-full text-[8px] shadow-sm border border-blue-400">
+                              X
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1 text-yellow-300">
+                            <span>Slot 3</span>
+                            <span className="bg-yellow-600 text-white w-4 h-4 flex items-center justify-center rounded-full text-[8px] shadow-sm border border-yellow-400">
+                              Y
+                            </span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex items-center gap-1 text-purple-400">
+                          <span>ÉQUIPER</span>
+                          <kbd className="bg-zinc-800 text-zinc-300 px-1.5 py-0.5 rounded border border-zinc-700 font-mono text-[9px]">
+                            ENTRÉE
+                          </kbd>
+                          <span className="text-zinc-600 text-[8px] ml-1">
+                            (1, 2, 3)
+                          </span>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -131,9 +158,12 @@ export default function SpellBookUI() {
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,_rgba(88,28,135,0.15),transparent_70%)] pointer-events-none" />
 
           <div className="flex-1 flex flex-col items-center justify-center gap-10 p-8">
-            <h3 className="text-xs text-purple-500/60 uppercase tracking-[0.4em] border-b border-purple-900/30 pb-2">
-              Mémoire Active
-            </h3>
+            <div className="flex items-center gap-3 border-b border-purple-900/30 pb-2">
+              <Gamepad2 className="text-purple-500/60" size={14} />
+              <h3 className="text-xs text-purple-500/60 uppercase tracking-[0.4em]">
+                Mémoire Active
+              </h3>
+            </div>
 
             <div className="flex flex-col gap-6 w-full max-w-sm relative z-10">
               {[0, 1, 2].map((slot) => {
@@ -141,10 +171,28 @@ export default function SpellBookUI() {
                 const spell = player.spells.find((s: any) => s.id === spellId);
                 const isSelected = menuSelectionIndex === 100 + slot;
 
+                // Icônes de manette pour chaque slot
+                const gamepadIcon = slot === 0 ? "A" : slot === 1 ? "X" : "Y";
+                const gamepadColor =
+                  slot === 0
+                    ? "bg-green-600 border-green-400"
+                    : slot === 1
+                    ? "bg-blue-600 border-blue-400"
+                    : "bg-yellow-600 border-yellow-400";
+
                 return (
                   <div key={slot} className="flex items-center gap-4 group">
-                    <div className="w-10 h-10 flex items-center justify-center border border-zinc-800 bg-zinc-900 rounded shadow-lg text-zinc-500 font-bold text-xs">
-                      {slot + 1}
+                    <div className="relative">
+                      <div className="w-10 h-10 flex items-center justify-center border border-zinc-800 bg-zinc-900 rounded shadow-lg text-zinc-500 font-bold text-xs relative z-10">
+                        {slot + 1}
+                      </div>
+                      {inputMethod === "gamepad" && (
+                        <div
+                          className={`absolute -top-2 -left-2 w-5 h-5 ${gamepadColor} rounded-full text-white text-[9px] flex items-center justify-center border shadow-md z-20 font-bold`}
+                        >
+                          {gamepadIcon}
+                        </div>
+                      )}
                     </div>
 
                     <div
@@ -200,10 +248,27 @@ export default function SpellBookUI() {
             </div>
           </div>
 
-          <div className="p-6 bg-purple-950/10 border-t border-purple-900/30 text-center w-full">
-            <p className="text-[10px] text-purple-300/40 leading-relaxed font-mono">
-              "L'esprit est une arme, forgez-le avec sagesse."
-            </p>
+          <div className="p-6 bg-purple-950/10 border-t border-purple-900/30 text-center w-full flex justify-between items-center text-[10px] text-zinc-500">
+            <div className="flex gap-4">
+              <span className="flex items-center gap-1">
+                <span className="bg-zinc-800 px-1.5 py-0.5 rounded border border-zinc-700">
+                  {inputMethod === "gamepad" ? "DIR" : "FLÈCHES"}
+                </span>
+                <span>Naviguer</span>
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="bg-zinc-800 px-1.5 py-0.5 rounded border border-zinc-700">
+                  {inputMethod === "gamepad" ? "LB/RB" : "TAB"}
+                </span>
+                <span>Onglet</span>
+              </span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="bg-zinc-800 px-1.5 py-0.5 rounded border border-zinc-700">
+                {inputMethod === "gamepad" ? "B" : "ECHAP"}
+              </span>
+              <span>Fermer</span>
+            </div>
           </div>
         </div>
       </div>

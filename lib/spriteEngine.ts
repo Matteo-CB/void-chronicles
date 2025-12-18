@@ -1,6 +1,6 @@
 import { LevelTheme } from "@/types/game";
 import { drawPlayer } from "./sprites/playerSprite";
-import { drawMob } from "./sprites/mobs"; // Assure-toi que index.ts exporte bien drawSlime/drawGoblin via drawMob
+import { drawMob } from "./sprites/mobs";
 import { drawBoss } from "./sprites/bosses";
 import { drawItem } from "./sprites/items";
 import { drawDecor } from "./sprites/decor";
@@ -19,7 +19,6 @@ function createCachedSprite(
   const ctx = canvas.getContext("2d");
   if (ctx) {
     ctx.imageSmoothingEnabled = false;
-    // On centre un peu le dessin si nécessaire, mais on dessine direct ici
     drawFn(ctx);
   }
   spriteCache[key] = canvas;
@@ -31,34 +30,34 @@ export function getSprite(
   variant: string = "idle",
   theme?: LevelTheme
 ): HTMLCanvasElement {
+  // Sécurité : si type est undefined, fallback sur ROCK
+  if (!type) type = "ROCK";
+
   const themeKey = theme ? theme.name : "default";
   const cacheKey = `${type}_${variant}_${themeKey}`;
 
   if (!spriteCache[cacheKey]) {
     return createCachedSprite(cacheKey, (ctx) => {
-      // --- EFFETS GLOBAUX ---
-      // Si c'est un sort ou un truc magique, on active un léger glow par défaut
-      if (type === "FIREBALL" || type.includes("STAFF") || type === "POTION") {
-        // Le glow sera géré individuellement dans les fonctions de dessin pour plus de précision
-      }
-
+      // --- JOUEUR ---
       if (type === "PLAYER") {
         drawPlayer(ctx);
-      } else if (
-        [
-          "WEAPON_SWORD",
-          "WEAPON_BOW",
-          "WEAPON_STAFF",
-          "WEAPON_PISTOL",
-          "CHEST",
-          "POTION",
-          "GOLD",
-          "RELIC",
-          "ARMOR",
-        ].includes(type)
+      }
+      // --- ITEMS & LOOT (Correction ici : Logique plus permissive) ---
+      else if (
+        type.startsWith("WEAPON_") ||
+        type.startsWith("ARMOR") ||
+        type.startsWith("RELIC") || // Pour les accessoires
+        type === "CHEST" ||
+        type === "CHEST_OPEN" || // Ajout pour coffre ouvert
+        type === "POTION" ||
+        type === "GOLD" ||
+        type === "SPELLBOOK" ||
+        type === "SCROLL"
       ) {
         drawItem(ctx, type, variant);
-      } else if (
+      }
+      // --- DECOR ---
+      else if (
         [
           "WALL",
           "FLOOR",
@@ -70,6 +69,8 @@ export function getSprite(
           "STAIRS",
           "FIREBALL",
           "BARREL",
+          "CRATE", // Ajouté (utilisé dans generator)
+          "BOOKSHELF", // Ajouté (utilisé dans generator)
           "CRACK",
           "VENT",
           "PIPE",
@@ -78,15 +79,17 @@ export function getSprite(
         type.startsWith("CRYSTAL")
       ) {
         drawDecor(ctx, type, theme);
-      } else if (
+      }
+      // --- BOSS ---
+      else if (
         ["GOLEM", "LAVA_GOLEM", "TITAN", "DRAGON", "LICH", "MERCHANT"].includes(
           type
         )
       ) {
         drawBoss(ctx, type);
-      } else {
-        // Fallback pour les mobs standards (Rat, etc. si non définis explicitement)
-        // Note: Assure-toi que drawMob gère le mapping vers drawSlime/drawGoblin
+      }
+      // --- MOBS (Fallback par défaut) ---
+      else {
         drawMob(ctx, type);
       }
     });
@@ -95,7 +98,6 @@ export function getSprite(
 }
 
 export function generateBackgroundSVG() {
-  // Fond plus sombre et texturé
   return `<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
     <defs>
       <filter id="noise">

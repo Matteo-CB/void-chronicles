@@ -29,9 +29,12 @@ export const combatLoopLogic = (set: SetState, get: GetState, dt: number) => {
     set({ hitStop: Math.max(0, hitStop - dt) });
     return;
   }
+
+  // Decay Screen Shake (Amortissement fluide)
   if (screenShake > 0) {
     set({ screenShake: Math.max(0, screenShake - 0.8) });
   }
+
   if (damageFlash && damageFlash > 0) {
     set({ damageFlash: Math.max(0, damageFlash - 0.05) });
   }
@@ -47,6 +50,7 @@ export const combatLoopLogic = (set: SetState, get: GetState, dt: number) => {
     set((s) => ({ player: { ...s.player, spells: newSpells } }));
   }
 
+  // Création des callbacks et récupération des événements de ce tour
   const { callbacks, newProjectilesToAdd, newLogsToAdd, damageEvents } =
     createCombatCallbacks(set, get);
 
@@ -70,8 +74,7 @@ export const combatLoopLogic = (set: SetState, get: GetState, dt: number) => {
     callbacks
   );
 
-  // --- CORRECTIF CRITIQUE : PERSISTANCE DES FLAGS ---
-  // On s'assure que si un ennemi avait déjà drop son loot, l'info n'est pas perdue par updateEnemiesLogic
+  // Correction persistance loot
   newEnemies = newEnemies.map((ne) => {
     const old = enemies.find((oe) => oe.id === ne.id);
     if (old && (old as any).lootDropped) {
@@ -79,6 +82,89 @@ export const combatLoopLogic = (set: SetState, get: GetState, dt: number) => {
     }
     return ne;
   });
+
+  // --- JUICE SYSTEM : Shake, Particules & Knockback ---
+  let addedParticles: any[] = [];
+  let currentShake = screenShake;
+
+  if (damageEvents.length > 0) {
+    damageEvents.forEach((evt) => {
+      // 1. Screen Shake
+      const impact = evt.isCrit ? 8 : 2; // + Fort si critique
+      currentShake = Math.min(20, currentShake + impact);
+
+      // Trouve la cible pour positionner les effets
+      let target = newEnemies.find((e) => e.id === evt.id);
+
+      // Si la cible n'est pas un ennemi (ex: joueur), on ne la trouve pas dans newEnemies
+      if (target) {
+        const tx = target.position.x;
+        const ty = target.position.y;
+
+        // 2. Particules (Sang / Éclats)
+        const particleCount = evt.isCrit ? 12 : 6;
+        const color =
+          target.type === "barrel" || target.type === "crate"
+            ? "#fbbf24"
+            : "#ef4444"; // Jaune pour objets, Rouge pour mobs
+
+        for (let i = 0; i < particleCount; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = Math.random() * 0.15 + 0.05;
+          addedParticles.push({
+            id: Math.random(),
+            x: tx,
+            y: ty,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            life: 1.0, // Durée de vie
+            color: color,
+            size: Math.random() * 0.15 + 0.05,
+            gravity: 0.01, // Effet de chute
+          });
+        }
+
+        // 3. Knockback (Recul)
+        if (!target.isDead && target.type !== "boss") {
+          // Les boss sont trop lourds
+          const dx = tx - player.position.x;
+          const dy = ty - player.position.y;
+          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+
+          // Force du recul
+          const pushForce = evt.isCrit ? 0.6 : 0.2;
+
+          const nx = tx + (dx / dist) * pushForce;
+          const ny = ty + (dy / dist) * pushForce;
+
+          // Vérification collision mur simple avant d'appliquer le recul
+          const mapW = map[0].length;
+          const mapH = map.length;
+
+          // --- CORRECTION : Vérification Typée du Mur ---
+          const tile = map[Math.floor(ny)]?.[Math.floor(nx)];
+
+          if (
+            nx >= 0 &&
+            nx < mapW &&
+            ny >= 0 &&
+            ny < mapH &&
+            tile &&
+            tile.type !== "wall" // On vérifie la propriété 'type'
+          ) {
+            // Appliquer le recul directement
+            target.position.x = nx;
+            target.position.y = ny;
+          }
+        }
+      }
+    });
+
+    // Mise à jour du shake si modifié
+    if (currentShake !== screenShake) {
+      set({ screenShake: currentShake });
+    }
+  }
 
   const activeProjectiles = updateProjectilesLogic(
     projectiles,
@@ -98,12 +184,11 @@ export const combatLoopLogic = (set: SetState, get: GetState, dt: number) => {
   );
 
   // --- SPAWN OR & LOGS ---
-  let newParticles: any[] = [];
+  let newParticles: any[] = [...addedParticles];
   let newFloatingTexts: any[] = [];
   let newLogs: string[] = [...newLogsToAdd];
 
   newEnemies = newEnemies.map((e) => {
-    // On vérifie e.lootDropped pour ne pas respawn l'or
     if (e.isDead && !(e as any).lootDropped && e.type === "enemy") {
       newLogs.push(`${e.name} a été vaincu !`);
 
@@ -114,14 +199,14 @@ export const combatLoopLogic = (set: SetState, get: GetState, dt: number) => {
       );
 
       const goldEntity: Entity = {
-        id: `gold_${Date.now()}_${Math.random()}`, // ID unique robuste
+        id: `gold_${Date.now()}_${Math.random()}`,
         type: "gold",
         name: "Tas d'or",
         spriteKey: "GOLD",
         position: { x: e.position.x, y: e.position.y },
         stats: { hp: 1, maxHp: 1 } as any,
         isHostile: false,
-        value: goldAmount, // On stocke la valeur ici
+        value: goldAmount,
         visualScale: 0.7,
       };
       (e as any)._spawnGold = goldEntity;
@@ -140,7 +225,6 @@ export const combatLoopLogic = (set: SetState, get: GetState, dt: number) => {
     newEnemies = [...newEnemies, ...goldToSpawn];
   }
 
-  // Nettoyage des propriétés temporaires
   newEnemies = newEnemies.map((e) => {
     if ((e as any)._spawnGold) {
       const { _spawnGold, ...rest } = e as any;
@@ -180,15 +264,17 @@ export const combatLoopLogic = (set: SetState, get: GetState, dt: number) => {
     .map((t) => ({ ...t, life: t.life - 0.015, y: t.y - 0.01 }))
     .filter((t) => t.life > 0);
 
+  // Mise à jour de la physique des particules (Gravité + Vitesse)
   const activeParticles = [...particles, ...newParticles]
     .map((p) => {
       const gravity = (p as any).gravity || 0;
       return {
         ...p,
-        life: p.life - 0.02,
+        life: p.life - 0.03, // Disparition progressive
         x: p.x + p.vx,
         y: p.y + p.vy,
-        vy: p.vy + gravity,
+        vy: p.vy + gravity, // Appliquer gravité
+        vx: p.vx * 0.9, // Friction de l'air
       };
     })
     .filter((p) => p.life > 0);

@@ -4,7 +4,6 @@ import useGameStore from "@/store/gameStore";
 import {
   Gamepad2,
   Keyboard,
-  Heart,
   Shield,
   Coins,
   Sword,
@@ -33,7 +32,10 @@ export default function HUD() {
   const [shakeHp, setShakeHp] = useState(false);
   const [delayedHp, setDelayedHp] = useState(player.stats.hp);
 
-  // Recherche du Boss actif pour la BOSS BAR
+  const [nearbyInteractive, setNearbyInteractive] = useState<string | null>(
+    null
+  );
+
   const boss = enemies.find((e: any) => e.aiBehavior === "boss" && !e.isDead);
 
   useEffect(() => {
@@ -55,6 +57,41 @@ export default function HUD() {
     }
     return () => clearTimeout(timer);
   }, [isConfirmingAbandon]);
+
+  // --- FILTRE D'INTERACTION ---
+  useEffect(() => {
+    const checkProximity = () => {
+      const px = player.position.x;
+      const py = player.position.y;
+
+      // On ignore les items, gold, potions, debris, tonneaux
+      const interactive = enemies.find(
+        (e: any) =>
+          !e.isHostile &&
+          (e.type === "merchant" ||
+            e.type === "npc" ||
+            e.type === "shrine" ||
+            (e.type === "chest" && !e.isOpen)) &&
+          Math.abs(e.position.x - px) < 1.5 &&
+          Math.abs(e.position.y - py) < 1.5
+      );
+
+      if (interactive) {
+        let action = "Interagir";
+        if (interactive.type === "chest") action = "Ouvrir";
+        else if (interactive.type === "merchant") action = "Commerce";
+        else if (interactive.type === "npc") action = "Parler";
+        else if (interactive.type === "shrine") action = "Prier";
+
+        setNearbyInteractive(`${action} : ${interactive.name}`);
+      } else {
+        setNearbyInteractive(null);
+      }
+    };
+
+    const interval = setInterval(checkProximity, 200);
+    return () => clearInterval(interval);
+  }, [player.position, enemies]);
 
   const handleAbandonClick = () => {
     if (!isConfirmingAbandon) {
@@ -84,27 +121,27 @@ export default function HUD() {
     return "CHEST";
   };
 
-  // MISE A JOUR DES CONTROLS POUR CORRESPONDRE AU MOTEUR (K/L et Select)
   const CONTROLS =
     inputMethod === "gamepad"
       ? [
           { label: "Atk", key: "X/Y" },
           { label: "Action", key: "A" },
-          { label: "Sac", key: "Select" }, // Corrigé : Select ouvre l'inventaire
+          { label: "Dash", key: "B" }, // Ajout Dash
+          { label: "Sac", key: "Select" },
         ]
       : [
-          { label: "Atk", key: "K/L" }, // Corrigé : K (Light) / L (Heavy)
+          { label: "Atk", key: "K/L" },
           { label: "Action", key: "E" },
-          { label: "Sac", key: "Tab" }, // Tab ou I est standard
+          { label: "Dash", key: "ESPACE" }, // Ajout Dash
+          { label: "Sac", key: "I" },
         ];
+
+  const interactKey = inputMethod === "gamepad" ? "A" : "E";
 
   return (
     <div className="absolute top-0 left-0 w-full h-full p-4 pointer-events-none flex flex-col justify-between font-pixel z-30 overflow-hidden">
-      {/* VIGNETTE & OVERLAY EFFECTS */}
       <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_center,transparent_60%,rgba(0,0,0,0.6)_100%)] z-0"></div>
-      <div className="absolute inset-0 pointer-events-none opacity-5 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_2px,3px_100%] z-0"></div>
 
-      {/* --- BOSS BAR (CENTRÉ EN HAUT) --- */}
       {boss && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 w-full max-w-lg z-50 pointer-events-none animate-in fade-in slide-in-from-top-4 duration-700">
           <div className="flex justify-between items-end px-1 mb-1">
@@ -116,7 +153,6 @@ export default function HUD() {
             </span>
           </div>
           <div className="h-4 bg-zinc-950 border-2 border-red-900 rounded-sm relative overflow-hidden shadow-[0_0_20px_rgba(220,38,38,0.4)]">
-            {/* Fond clignotant si HP bas */}
             <div
               className={`absolute inset-0 bg-red-900/20 ${
                 boss.stats.hp < boss.stats.maxHp * 0.3 ? "animate-pulse" : ""
@@ -130,9 +166,7 @@ export default function HUD() {
         </div>
       )}
 
-      {/* TOP HUD */}
       <div className="flex justify-between items-start w-full relative z-10">
-        {/* PLAYER STATUS */}
         <div className="flex gap-4 pointer-events-auto items-start group">
           <div className="relative">
             <div className="absolute inset-0 bg-black blur-md rounded-full opacity-50"></div>
@@ -145,9 +179,8 @@ export default function HUD() {
             >
               <div className="absolute inset-0 bg-gradient-to-br from-zinc-800 to-black opacity-90"></div>
               <SpriteIcon
-                type="PLAYER"
-                size={60}
-                className="relative z-10 drop-shadow-[0_4px_4px_rgba(0,0,0,0.5)]"
+                spriteKey="PLAYER"
+                className="w-[60px] h-[60px] relative z-10 drop-shadow-[0_4px_4px_rgba(0,0,0,0.5)]"
               />
               <div className="absolute bottom-0 w-full h-1/2 bg-gradient-to-t from-black to-transparent opacity-60 z-10"></div>
             </div>
@@ -178,7 +211,6 @@ export default function HUD() {
               </div>
             </div>
 
-            {/* HEALTH BAR */}
             <div className="relative h-4 bg-zinc-950/80 border border-zinc-800 rounded-sm overflow-hidden">
               <div
                 className="absolute h-full bg-white transition-all duration-500 ease-out"
@@ -195,7 +227,6 @@ export default function HUD() {
               </div>
             </div>
 
-            {/* MANA BAR */}
             <div className="relative h-2 bg-zinc-950/80 border border-zinc-800 rounded-sm mt-0.5 overflow-hidden">
               <div
                 className="absolute h-full bg-gradient-to-r from-blue-900 via-blue-500 to-cyan-400 transition-all duration-300 shadow-[0_0_10px_rgba(59,130,246,0.5)]"
@@ -215,12 +246,10 @@ export default function HUD() {
           </div>
         </div>
 
-        {/* TOP RIGHT INFO */}
         <div className="flex flex-col items-end gap-4 pointer-events-auto">
           <div className="flex items-center gap-2">
             <div className="bg-zinc-900/90 border border-zinc-700 px-3 py-1.5 rounded-sm shadow-lg flex items-center gap-3">
               <div className="flex flex-col items-end">
-                {/* NOM DU BIOME (Plus dynamique) */}
                 <span className="text-[8px] text-zinc-500 uppercase tracking-widest">
                   {levelTheme?.name || "Zone Inconnue"}
                 </span>
@@ -247,7 +276,6 @@ export default function HUD() {
             </button>
           </div>
 
-          {/* QUICK INVENTORY */}
           <div className="flex gap-1.5 p-1.5 bg-zinc-950/80 border border-zinc-800 rounded backdrop-blur-sm">
             {inventory.slice(0, 5).map((item: any, i: number) => (
               <div
@@ -256,9 +284,8 @@ export default function HUD() {
               >
                 {item && (
                   <SpriteIcon
-                    type={getItemSpriteKey(item)}
-                    size={18}
-                    className="drop-shadow-sm"
+                    spriteKey={getItemSpriteKey(item)}
+                    className="w-[18px] h-[18px] drop-shadow-sm"
                   />
                 )}
                 <div className="absolute -bottom-1 -right-1 bg-zinc-950 border border-zinc-800 w-3 h-3 flex items-center justify-center text-[6px] text-zinc-400">
@@ -270,9 +297,29 @@ export default function HUD() {
         </div>
       </div>
 
-      {/* BOTTOM HUD */}
+      {nearbyInteractive && (
+        <div className="absolute bottom-32 left-1/2 -translate-x-1/2 animate-in slide-in-from-bottom-4 fade-in zoom-in duration-200 pointer-events-none">
+          <div className="flex items-center gap-3 bg-zinc-950/90 backdrop-blur-md px-6 py-3 rounded-lg border border-white/10 shadow-[0_0_20px_rgba(0,0,0,0.5)]">
+            <div
+              className={`
+                    w-6 h-6 flex items-center justify-center rounded font-bold text-xs shadow-lg border
+                    ${
+                      inputMethod === "gamepad"
+                        ? "bg-green-600 border-green-500 text-white animate-pulse"
+                        : "bg-zinc-100 text-black border-zinc-300"
+                    }
+                  `}
+            >
+              {interactKey}
+            </div>
+            <span className="text-zinc-200 text-xs font-bold tracking-wide uppercase drop-shadow-md">
+              {nearbyInteractive}
+            </span>
+          </div>
+        </div>
+      )}
+
       <div className="flex justify-between items-end w-full relative z-10">
-        {/* LOGS - STYLE TERMINAL */}
         <div className="w-[360px] pointer-events-none">
           <div className="bg-gradient-to-t from-black via-zinc-950/80 to-transparent p-4 rounded-tr-2xl border-l-2 border-b-2 border-zinc-800/50 mask-image-linear-to-b backdrop-blur-md">
             <div className="flex flex-col justify-end gap-1 min-h-[120px]">
@@ -299,9 +346,8 @@ export default function HUD() {
           </div>
         </div>
 
-        {/* SPELLS & CONTROLS */}
         <div className="flex flex-col items-end gap-3 pointer-events-auto">
-          {/* SPELLS BAR */}
+          {/* Spell Bar */}
           <div className="flex gap-3 p-2 bg-zinc-950/80 border border-zinc-800 rounded-xl backdrop-blur-xl shadow-2xl">
             {spells.map((spellId: string | null, i: number) => {
               const spell = player.spells?.find((s: any) => s.id === spellId);
@@ -352,7 +398,6 @@ export default function HUD() {
             })}
           </div>
 
-          {/* CONTROLS HINT */}
           <div className="flex gap-2 opacity-50 hover:opacity-100 transition-opacity bg-black/40 p-1.5 rounded border border-white/5">
             <div className="flex items-center gap-1.5">
               <div className="w-5 h-5 bg-zinc-200 text-black text-[9px] font-bold flex items-center justify-center rounded shadow-sm">

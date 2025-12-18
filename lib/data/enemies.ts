@@ -28,11 +28,21 @@ const BASE_STATS: Stats = {
 
 // Interface étendue pour les comportements IA avancés
 export interface EnemyConfig extends Partial<Entity> {
-  aiBehavior: "chaser" | "archer" | "caster" | "tank" | "boss";
-  aggroRange?: number; // Distance de détection
-  fleeHealthThreshold?: number; // % PV pour fuir (0-1)
-  minDistance?: number; // Distance min à garder (pour archers/mages)
-  attackCooldown?: number; // Délai entre les attaques (ms)
+  aiBehavior:
+    | "chaser"
+    | "archer"
+    | "caster"
+    | "tank"
+    | "boss"
+    | "summoner"
+    | "healer"; // Nouveaux comportements
+  aggroRange?: number;
+  fleeHealthThreshold?: number;
+  minDistance?: number;
+  attackCooldown?: number;
+  summonType?: string; // Quel ennemi invoquer ?
+  maxSummons?: number; // Combien max ?
+  healAmount?: number; // Combien de PV soigner ?
 }
 
 export const ENEMY_DB: Record<string, EnemyConfig> = {
@@ -147,6 +157,60 @@ export const ENEMY_DB: Record<string, EnemyConfig> = {
     projectileColor: "#8b5cf6",
     visualScale: 1,
   },
+  // --- NOUVEAUX ENNEMIS ---
+  ORC_WARRIOR: {
+    name: "Guerrier Orc",
+    spriteKey: "ORC_WARRIOR", // Assurez-vous d'avoir ce sprite ou utilisez un existant
+    stats: {
+      ...BASE_STATS,
+      hp: 120,
+      maxHp: 120,
+      attack: 18,
+      defense: 5,
+      speed: 0.7,
+      xpValue: 40,
+    },
+    aiBehavior: "tank",
+    aggroRange: 8,
+    visualScale: 1.1,
+  },
+  NECROMANCER: {
+    name: "Nécromancien",
+    spriteKey: "NECROMANCER", // Idem
+    stats: {
+      ...BASE_STATS,
+      hp: 60,
+      maxHp: 60,
+      attack: 8,
+      speed: 0.7,
+      xpValue: 50,
+    },
+    aiBehavior: "summoner",
+    summonType: "SKELETON",
+    maxSummons: 3,
+    range: 7,
+    minDistance: 6,
+    aggroRange: 12,
+    visualScale: 1,
+  },
+  CLERIC: {
+    name: "Clerc Corrompu",
+    spriteKey: "PRIEST", // Idem
+    stats: {
+      ...BASE_STATS,
+      hp: 50,
+      maxHp: 50,
+      attack: 5,
+      speed: 0.9,
+      xpValue: 30,
+    },
+    aiBehavior: "healer",
+    healAmount: 20,
+    range: 5,
+    minDistance: 5,
+    aggroRange: 10,
+    visualScale: 0.9,
+  },
 };
 
 export function createEnemy(
@@ -163,8 +227,6 @@ export function createEnemy(
   stats.attack = Math.floor(stats.attack * multiplier);
   stats.xpValue = Math.floor(stats.xpValue * multiplier);
 
-  // Correction TypeScript : On utilise 'any' pour permettre les nouvelles propriétés d'IA
-  // sans casser le typage strict de 'Entity' dans le reste de l'app.
   const enemyData = {
     id: `enemy_${Date.now()}_${Math.random()}`,
     type: "enemy",
@@ -181,6 +243,10 @@ export function createEnemy(
     aggroRange: base.aggroRange || 10,
     moveTimer: Math.random() * 1000,
     attackTimer: Math.random() * 2000,
+    // Propriétés spécifiques IA
+    summonType: base.summonType,
+    maxSummons: base.maxSummons,
+    healAmount: base.healAmount,
   };
 
   return enemyData as any as Entity;

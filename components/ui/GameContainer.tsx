@@ -33,68 +33,56 @@ export default function GameContainer() {
 
   const { containerRef, triggerShake, updateShake } = useShake();
 
-  // CORRECTION : On encapsule triggerShake pour fournir l'argument 'amount' requis (ex: 5)
-  // Cela satisfait la signature expected: () => void
   const keysPressed = useKeyboard(() => triggerShake(5));
   const { pollGamepad } = useGamepad(() => triggerShake(5));
 
-  // Le jeu est considéré "actif" tant qu'on n'est pas sur l'écran titre
   const isPlaying = gameState !== "start";
 
-  // Le jeu tourne en boucle (Game Loop) pour gérer la logique et le rendu
   useGameLoop(updateShake, keysPressed, pollGamepad);
 
-  // Gestion dynamique du curseur selon la méthode d'entrée
   useEffect(() => {
     if (inputMethod === "gamepad") document.body.style.cursor = "none";
     else document.body.style.cursor = "default";
   }, [inputMethod]);
 
-  // Détermine si on doit afficher le menu de gestion (Inventaire/Grimoire)
+  // CORRECTION ICI : Ajout de "quests" pour ne pas fermer le menu quand on l'ouvre
   const showManagement =
     gameState === "inventory" ||
     gameState === "spellbook" ||
+    gameState === "quests" || // <--- AJOUT CRUCIAL
     gameState === "management_menu";
 
   return (
     <main className="relative w-full h-full bg-[#050505] overflow-hidden select-none cursor-default font-pixel">
-      {/* 1. ÉCRAN DE CHARGEMENT (Priorité Maximale) */}
+      {/* 1. ÉCRAN DE CHARGEMENT */}
       {isLoading && <LoadingScreen />}
 
-      {/* 2. ÉCRAN TITRE (Menu Principal) */}
+      {/* 2. ÉCRAN TITRE */}
       {gameState === "start" && !isLoading && <TitleScreen />}
 
-      {/* 3. JEU (Uniquement si pas Title Screen et Map chargée) */}
+      {/* 3. JEU */}
       {isPlaying && map && map.length > 0 && (
         <>
-          {/* EFFETS POST-PROCESSING (CRT & VIGNETTE) */}
           <div className="pointer-events-none fixed inset-0 z-[100] scanline opacity-30"></div>
           <div className="pointer-events-none fixed inset-0 z-[90] bg-[radial-gradient(circle_at_center,transparent_50%,rgba(0,0,0,0.6)_100%)]"></div>
 
-          {/* CONTENEUR DE JEU (Applique le tremblement d'écran) */}
           <div
             ref={containerRef}
             className="relative w-full h-full will-change-transform"
           >
             <GameView />
 
-            {/* INTERFACES (HUD) - Masqués si Menu Pause ou Game Over */}
             {gameState !== "gameover" && gameState !== "pause_menu" && <HUD />}
 
-            {/* COUCHE NARRATIVE (Dialogues & Cutscenes) */}
             {(currentDialogue || currentCutsceneId) && (
               <StoryOverlay key={currentCutsceneId || "dialogue"} />
             )}
 
-            {/* --- MENUS CONTEXTUELS & OVERLAYS --- */}
-
-            {/* Menu de Gestion Unifié (Inventaire + Grimoire) */}
+            {/* Menu de Gestion Unifié */}
             {showManagement && <ManagementMenu />}
 
-            {/* Menu Pause */}
             {gameState === "pause_menu" && <PauseMenu />}
 
-            {/* Fonds assombris pour Shop et LevelUp */}
             {(gameState === "shop" || gameState === "levelup") && (
               <div className="absolute inset-0 bg-black/70 backdrop-blur-sm z-40 transition-all duration-300 animate-in fade-in" />
             )}

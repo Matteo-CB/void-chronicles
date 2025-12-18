@@ -53,14 +53,26 @@ export default function InventoryUI() {
 
   // --- LOGIQUE DE SÉLECTION INTELLIGENTE ---
   let selectedItem: Item | null = null;
+  let actionLabel = "Action"; // Label par défaut
+
   if (menuSelectionIndex < 100) {
+    // Inventaire
     selectedItem = inventory[menuSelectionIndex];
+    if (selectedItem) {
+      actionLabel =
+        selectedItem.type === "potion" ||
+        (selectedItem as any).type === "scroll"
+          ? "Utiliser"
+          : "Équiper";
+    }
   } else {
-    // Si curseur sur équipement
+    // Équipement
     if (menuSelectionIndex === 100) selectedItem = player.equipment.weapon;
     else if (menuSelectionIndex === 101) selectedItem = player.equipment.armor;
     else if (menuSelectionIndex === 102)
       selectedItem = player.equipment.accessory;
+
+    if (selectedItem) actionLabel = "Déséquiper";
   }
 
   const activeItem =
@@ -147,14 +159,24 @@ export default function InventoryUI() {
             </div>
           </div>
 
-          {/* --- PIED DE PAGE : COMMANDES --- */}
+          {/* --- PIED DE PAGE : COMMANDES DYNAMIQUES --- */}
           <div className="mt-4 pt-4 border-t border-zinc-800 text-center text-[10px] text-zinc-500 flex justify-between uppercase tracking-wider font-bold">
             <div className="flex gap-4">
-              <span className="flex items-center gap-1.5">
-                <span className="bg-zinc-800 text-zinc-300 px-1.5 py-0.5 rounded border border-zinc-700">
+              <span className="flex items-center gap-1.5 transition-colors duration-200">
+                <span
+                  className={`px-1.5 py-0.5 rounded border ${
+                    selectedItem
+                      ? "bg-zinc-200 text-black border-white"
+                      : "bg-zinc-800 text-zinc-500 border-zinc-700"
+                  }`}
+                >
                   {inputMethod === "gamepad" ? "A" : "ENTRÉE"}
                 </span>
-                <span>Action</span>
+                <span
+                  className={selectedItem ? "text-zinc-200" : "text-zinc-600"}
+                >
+                  {actionLabel}
+                </span>
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="bg-zinc-800 text-zinc-300 px-1.5 py-0.5 rounded border border-zinc-700">

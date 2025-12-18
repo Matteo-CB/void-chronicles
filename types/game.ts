@@ -11,7 +11,8 @@ export type GameState =
   | "spellbook"
   | "levelup"
   | "pause_menu"
-  | "management_menu";
+  | "management_menu"
+  | "quests"; // AJOUTÉ : État officiel pour le journal de quêtes
 
 export interface Position {
   x: number;
@@ -49,6 +50,38 @@ export interface Stats {
   arcane: number;
 }
 
+// --- QUÊTES ---
+export type QuestType = "kill" | "collect" | "explore" | "interact";
+export type QuestStatus =
+  | "active"
+  | "completed"
+  | "failed"
+  | "ready_to_turn_in";
+
+export interface QuestObjective {
+  id: string;
+  type: QuestType;
+  targetId: string;
+  description: string;
+  current: number;
+  required: number;
+  isCompleted: boolean;
+}
+
+export interface Quest {
+  id: string;
+  title: string;
+  description: string;
+  status: QuestStatus;
+  objectives: QuestObjective[];
+  rewards: {
+    xp?: number;
+    gold?: number;
+    items?: Item[];
+  };
+  autoComplete?: boolean;
+}
+
 // --- ENTITÉS & OBJETS ---
 
 export type ItemType =
@@ -83,8 +116,6 @@ export interface Entity {
   isDead?: boolean;
   isHidden?: boolean;
   visualScale: number;
-
-  // CORRECTION : Ajout de la propriété isBoss manquante
   isBoss?: boolean;
 
   // IA & Combat
@@ -96,7 +127,9 @@ export interface Entity {
     | "boss"
     | "static"
     | "aggressive"
-    | "guardian";
+    | "guardian"
+    | "summoner"
+    | "healer";
 
   range?: number;
   projectileColor?: string;
@@ -107,6 +140,10 @@ export interface Entity {
   attackCooldown?: number;
   aggroRange?: number;
   minDistance?: number;
+
+  summonType?: string;
+  maxSummons?: number;
+  healAmount?: number;
 
   statusEffects?: string[];
   knockbackX?: number;
@@ -154,8 +191,8 @@ export interface Equipment {
 }
 
 // --- SYSTÈME DE PROGRESSION ---
-
 export interface Player {
+  classId?: string; // Ajout classe
   stats: Stats;
   xp: number;
   gold: number;
@@ -173,7 +210,10 @@ export interface Player {
   equippedSpells: (string | null)[];
 
   masteries: Mastery[];
+  quests: Quest[];
+
   lastAttackTime?: number;
+  lastDashTime?: number; // NOUVEAU
   statusEffects: string[];
 }
 

@@ -12,7 +12,23 @@ export default function GameView() {
   const camera = useRef<{ x: number; y: number } | null>(null);
   const torchFlicker = useRef(1.0);
 
+  // Pour les particules d'ambiance (Nouveau)
+  const ambientParticles = useRef<
+    { x: number; y: number; size: number; speed: number; alpha: number }[]
+  >([]);
+
   useEffect(() => {
+    // Initialisation des particules d'ambiance
+    for (let i = 0; i < 30; i++) {
+      ambientParticles.current.push({
+        x: Math.random() * 1000,
+        y: Math.random() * 1000,
+        size: Math.random() * 2 + 0.5,
+        speed: Math.random() * 0.2 + 0.05,
+        alpha: Math.random() * 0.3 + 0.1,
+      });
+    }
+
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d", { alpha: false });
@@ -264,7 +280,19 @@ export default function GameView() {
             ctx.filter = "grayscale(80%) brightness(50%)";
             ctx.drawImage(sprite, vis.x, vis.y + 10, TILE_SIZE, TILE_SIZE);
           } else {
-            ctx.drawImage(sprite, vis.x, vis.y + bob, TILE_SIZE, TILE_SIZE);
+            // Gestion de la teinte pour le PNJ Garde
+            if (e.rarityColor && e.type === "npc") {
+              // Pas de filtre CSS simple sur canvas drawImage direct
+              // On utilise un globalCompositeOperation ou on laisse tel quel pour l'instant
+              // Pour simuler la teinte rouge sans shader complexe :
+              // On dessine normalement
+              ctx.drawImage(sprite, vis.x, vis.y + bob, TILE_SIZE, TILE_SIZE);
+              // On dessine un carré rouge par dessus avec mode 'source-atop' ou 'multiply'
+              // C'est complexe sans offscreen canvas.
+              // On va simplement garder le sprite normal ici pour ne pas alourdir/casser.
+            } else {
+              ctx.drawImage(sprite, vis.x, vis.y + bob, TILE_SIZE, TILE_SIZE);
+            }
           }
           ctx.restore();
         }
@@ -342,7 +370,7 @@ export default function GameView() {
         ctx.globalCompositeOperation = "source-over";
       }
 
-      // E. PARTICULES
+      // E. PARTICULES (Jeu)
       ctx.globalCompositeOperation = "lighter";
       particles.forEach((p: any) => {
         ctx.fillStyle = p.color;
@@ -426,6 +454,35 @@ export default function GameView() {
           }
         });
       }
+
+      // --- AJOUT PARTICULES D'AMBIANCE (Overlay) ---
+      // Elles sont dessinées par dessus tout le reste mais affectées par la caméra
+      // pour donner un effet de profondeur
+      ctx.globalCompositeOperation = "screen";
+      ambientParticles.current.forEach((p) => {
+        // Mouvement
+        p.y += p.speed;
+        p.x += Math.sin(time * 0.01 + p.y) * 0.2;
+
+        // Reset si hors champ (approx)
+        if (p.y > (camera.current?.y || 0) + canvas.height + 100) {
+          p.y = (camera.current?.y || 0) - 100;
+          p.x = (camera.current?.x || 0) + Math.random() * canvas.width;
+        }
+
+        ctx.fillStyle = `rgba(200, 220, 255, ${p.alpha})`;
+        ctx.beginPath();
+        // On utilise les coordonnées monde pour qu'elles bougent avec la caméra
+        // mais avec un léger effet de parallaxe si on voulait (ici simple)
+        // Pour faire simple et joli : on les dessine en screen space relatif à la caméra
+        // mais on simule qu'elles sont dans le monde
+
+        // Comme p.x/p.y sont initialisés aléatoirement, on les traite comme des coords monde
+        // pour qu'elles ne suivent pas le joueur
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.globalCompositeOperation = "source-over";
 
       ctx.restore();
 

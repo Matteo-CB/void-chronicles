@@ -19,6 +19,7 @@ export const useGameLoop = (
 
   useEffect(() => {
     const gameLoop = (time: number) => {
+      // Initialisation du temps
       if (lastTimeRef.current === 0) lastTimeRef.current = time;
       const deltaTime = time - lastTimeRef.current;
       lastTimeRef.current = time;
@@ -34,21 +35,19 @@ export const useGameLoop = (
         const MOVEMENT_COOLDOWN = 110;
         let keyboardActive = false;
 
+        // On utilise 'time' ici (performance.now)
         if (time - lastMoveTime.current > MOVEMENT_COOLDOWN) {
           const k = keysPressed.current;
           let moved = false;
 
-          // Utilisation des CODES physiques (KeyW = Z sur Azerty / W sur Qwerty)
-          // Cela répare le problème ZQSD sur tous les claviers
+          // Codes physiques pour compatibilité AZERTY/QWERTY
           if (k["ArrowUp"] || k["KeyW"] || k["KeyZ"]) {
-            // KeyZ ajouté par sécurité
             movePlayer("up");
             moved = true;
           } else if (k["ArrowDown"] || k["KeyS"]) {
             movePlayer("down");
             moved = true;
           } else if (k["ArrowLeft"] || k["KeyA"] || k["KeyQ"]) {
-            // KeyQ ajouté par sécurité
             movePlayer("left");
             moved = true;
           } else if (k["ArrowRight"] || k["KeyD"]) {
@@ -57,26 +56,23 @@ export const useGameLoop = (
           }
 
           if (moved) {
-            lastMoveTime.current = time;
-            keyboardActive = true; // On signale que le clavier a pris la main
+            lastMoveTime.current = time; // On enregistre le temps compatible
+            keyboardActive = true;
           }
         }
 
         // 4. Gestion Manette
-        // On ne poll la manette pour le mouvement QUE si le clavier n'est pas utilisé
-        // Cela évite qu'un joystick qui "drift" (bouge tout seul) bloque le clavier
+        // CORRECTION MAJEURE : On passe 'time' au lieu de Date.now()
+        // pour que le clavier et la manette partagent la même échelle de temps.
         if (!keyboardActive) {
-          pollGamepad(Date.now(), lastMoveTime);
+          pollGamepad(time, lastMoveTime);
         } else {
-          // On poll quand même pour les boutons (attaques, etc) mais on ignore le stick
-          // (pollGamepad gère tout, mais ici on simplifie en laissant pollGamepad faire son travail
-          // car il utilise aussi lastMoveTime. Si lastMoveTime vient d'être mis à jour par le clavier,
-          // pollGamepad verra qu'il est en cooldown et ne bougera pas. C'est sécurisé.)
-          pollGamepad(Date.now(), lastMoveTime);
+          // On poll les boutons mais on ignore le stick pour ne pas bloquer le clavier
+          pollGamepad(time, lastMoveTime);
         }
       } else {
-        // Si pas en jeu, on poll quand même pour les menus
-        pollGamepad(Date.now(), lastMoveTime);
+        // Si pas en jeu (Menus), on poll la manette avec le bon temps
+        pollGamepad(time, lastMoveTime);
       }
 
       requestRef.current = requestAnimationFrame(gameLoop);

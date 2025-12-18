@@ -57,11 +57,28 @@ export function spawnEntitiesInRoom(
     }
 
     const enemy = createEnemy(type, { x: ex, y: ey }, level);
-    enemy.stats.hp = Math.floor(enemy.stats.hp * (0.9 + Math.random() * 0.2));
+
+    // --- LOGIQUE ENNEMIS ÉLITES ---
+    // 10% de chance qu'un ennemi soit un élite (sauf si c'est déjà un boss)
+    if (Math.random() < 0.1 && enemy.aiBehavior !== "boss") {
+      enemy.name = `${enemy.name} (Élite)`;
+      enemy.visualScale = (enemy.visualScale || 1) * 1.2; // 20% plus gros
+      enemy.rarityColor = "#facc15"; // Lueur dorée (Gold)
+
+      // Boost Stats Élite
+      enemy.stats.maxHp = Math.floor(enemy.stats.maxHp * 1.5);
+      enemy.stats.hp = enemy.stats.maxHp;
+      enemy.stats.attack = Math.floor(enemy.stats.attack * 1.3);
+      enemy.stats.xpValue = Math.floor(enemy.stats.xpValue * 2.5); // XP juteuse
+    } else {
+      // Variation PV standard pour les normaux
+      enemy.stats.hp = Math.floor(enemy.stats.hp * (0.9 + Math.random() * 0.2));
+    }
+
     entities.push(enemy);
   }
 
-  // --- SPAWN POTION RARE (NOUVEAU) ---
+  // --- SPAWN POTION RARE ---
   // 5% de chance par salle d'avoir une potion au sol
   if (Math.random() < 0.05) {
     const px = room.x + Math.floor(Math.random() * room.w);

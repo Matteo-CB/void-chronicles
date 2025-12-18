@@ -10,7 +10,7 @@ export const createCombatSlice: StateCreator<GameStore, [], [], any> = (
   projectiles: [],
   logs: [],
   floatingTexts: [],
-  particles: [],
+  particles: [], // Stockage des particules de sang/effets
 
   updateGameLogic: (dt: number) => {
     combatLoopLogic(set, get, dt);
@@ -20,7 +20,6 @@ export const createCombatSlice: StateCreator<GameStore, [], [], any> = (
     performAttackAction(set, get, "light");
   },
 
-  // Cette fonction est maintenant appelée par les hooks avec le bon type
   performAttack: (type: "light" | "heavy") => {
     performAttackAction(set, get, type);
   },
@@ -40,6 +39,26 @@ export const createCombatSlice: StateCreator<GameStore, [], [], any> = (
     text?: string,
     textColor?: string
   ) => {
+    // Génère des particules manuellement si demandé (ex: interaction coffre)
+    let newParticles = [];
+    if (count > 0) {
+      for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 0.1;
+        newParticles.push({
+          id: Math.random(),
+          x,
+          y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          life: 1.0,
+          color: color,
+          size: Math.random() * 0.1 + 0.05,
+          gravity: 0,
+        });
+      }
+    }
+
     set((s) => {
       const newTexts = text
         ? [
@@ -55,7 +74,10 @@ export const createCombatSlice: StateCreator<GameStore, [], [], any> = (
             },
           ]
         : s.floatingTexts;
-      return { floatingTexts: newTexts } as any;
+
+      const allParticles = [...s.particles, ...newParticles];
+
+      return { floatingTexts: newTexts, particles: allParticles } as any;
     });
   },
 });

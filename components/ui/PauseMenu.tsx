@@ -11,6 +11,7 @@ import {
   Keyboard,
   X,
   CheckCircle2,
+  Move,
 } from "lucide-react";
 
 export default function PauseMenu() {
@@ -257,7 +258,7 @@ export default function PauseMenu() {
           )}
         </div>
       ) : (
-        // --- ÉCRAN D'AIDE (MIS A JOUR AVEC LES 2 ATTAQUES) ---
+        // --- ÉCRAN D'AIDE ---
         <div className="relative z-10 w-full max-w-4xl p-8 bg-zinc-950/90 border border-zinc-800 rounded-xl shadow-2xl animate-in zoom-in-95">
           <button
             onClick={() => setShowHelp(false)}
@@ -284,9 +285,22 @@ export default function PauseMenu() {
 
               <div className="space-y-3 text-xs text-zinc-400">
                 <div className="flex justify-between items-center">
-                  <span>Mouvement</span>
+                  <span>Mouvement Personnage</span>
                   <span className="font-mono text-zinc-200 bg-zinc-900 px-2 py-1 rounded border border-zinc-800">
                     ZQSD
+                  </span>
+                </div>
+                <div className="flex justify-between items-center bg-zinc-900/30 p-1 rounded">
+                  <span className="text-yellow-500">Navigation Menus</span>
+                  <span className="font-mono text-zinc-200 bg-zinc-900 px-2 py-1 rounded border border-zinc-800">
+                    FLÈCHES / ZQSD
+                  </span>
+                </div>
+                {/* AJOUT DASH CLAVIER */}
+                <div className="flex justify-between items-center">
+                  <span className="text-white font-bold">Dash (Esquive)</span>
+                  <span className="font-mono text-zinc-200 bg-zinc-900 px-2 py-1 rounded border border-zinc-800">
+                    ESPACE / SHIFT
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
@@ -304,19 +318,13 @@ export default function PauseMenu() {
                 <div className="flex justify-between items-center">
                   <span>Interagir</span>
                   <span className="font-mono text-zinc-200 bg-zinc-900 px-2 py-1 rounded border border-zinc-800">
-                    ESPACE / E
+                    E / ENTRÉE
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span>Menu & Inventaire</span>
+                  <span>Ouvrir Inventaire</span>
                   <span className="font-mono text-zinc-200 bg-zinc-900 px-2 py-1 rounded border border-zinc-800">
                     TAB
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span>Pause</span>
-                  <span className="font-mono text-zinc-200 bg-zinc-900 px-2 py-1 rounded border border-zinc-800">
-                    ECHAP
                   </span>
                 </div>
               </div>
@@ -327,7 +335,7 @@ export default function PauseMenu() {
               <div className="flex items-center gap-3 text-zinc-100 border-b border-zinc-800 pb-2">
                 <Gamepad2 className="text-zinc-500" />
                 <span className="text-sm font-bold tracking-wider">
-                  MANETTE
+                  MANETTE (XBOX / PS)
                 </span>
               </div>
 
@@ -338,34 +346,41 @@ export default function PauseMenu() {
                     STICK GAUCHE
                   </span>
                 </div>
+                <div className="flex justify-between items-center bg-blue-900/10 p-1 rounded">
+                  <span className="text-blue-400">Navigation Menus</span>
+                  <span className="font-mono text-blue-300 bg-blue-900/20 px-2 py-1 rounded border border-blue-900/50">
+                    D-PAD / STICK
+                  </span>
+                </div>
+                {/* AJOUT DASH MANETTE */}
                 <div className="flex justify-between items-center">
-                  <span>Attaque Rapide</span>
+                  <span className="text-white font-bold">Dash / Retour</span>
+                  <span className="font-mono text-blue-300 bg-blue-900/20 px-2 py-1 rounded border border-blue-900/50">
+                    B / ROND
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span>Attaque Rapide / Slot 2</span>
                   <span className="font-mono text-blue-300 bg-blue-900/20 px-2 py-1 rounded border border-blue-900/50">
                     X / CARRÉ
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span>Attaque Lourde</span>
+                  <span>Attaque Lourde / Slot 3</span>
                   <span className="font-mono text-blue-300 bg-blue-900/20 px-2 py-1 rounded border border-blue-900/50">
-                    Y / R2
+                    Y / TRIANGLE
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span>Interagir / Valider</span>
+                  <span>Valider / Slot 1</span>
                   <span className="font-mono text-blue-300 bg-blue-900/20 px-2 py-1 rounded border border-blue-900/50">
                     A / CROIX
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span>Menu & Inventaire</span>
+                  <span>Onglets / Raccourcis</span>
                   <span className="font-mono text-blue-300 bg-blue-900/20 px-2 py-1 rounded border border-blue-900/50">
-                    SELECT / BACK
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span>Pause</span>
-                  <span className="font-mono text-blue-300 bg-blue-900/20 px-2 py-1 rounded border border-blue-900/50">
-                    START
+                    LB / RB
                   </span>
                 </div>
               </div>
@@ -374,7 +389,7 @@ export default function PauseMenu() {
 
           <div className="mt-8 pt-4 text-center">
             <span className="text-[10px] text-zinc-500 animate-pulse">
-              Appuyez sur B / ECHAP pour revenir
+              Appuyez sur B / ECHAP pour fermer
             </span>
           </div>
         </div>

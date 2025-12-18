@@ -11,6 +11,7 @@ import {
   AttackAnim,
   SpeechBubble,
   LevelTheme,
+  Quest,
 } from "@/types/game";
 
 export interface GameStore {
@@ -53,13 +54,18 @@ export interface GameStore {
   updateGameLogic: (dt: number) => void;
   combatLoopLogic: (dt: number) => void;
 
-  // *** CORRECTION : Ajout des méthodes manquantes pour les Hooks ***
+  // Initialisation Nouvelle Partie avec Classe
+  startGameWithClass: (classId: string) => void;
+
   setGameState: (state: GameState) => void;
   playerAttack: () => void;
 
   // Actions Joueur
   movePlayer: (dir: Direction) => void;
   movePlayerMapLogic: (direction: Direction) => void;
+
+  // --- AJOUT DASH ICI ---
+  dash: () => void;
 
   performAttack: (type: "light" | "heavy") => void;
   performAttackAction: (type: "light" | "heavy") => void;
@@ -134,4 +140,14 @@ export interface GameStore {
   // Progression
   gainXp: (amount: number) => void;
   levelUp: () => void;
+
+  // Quêtes
+  acceptQuest: (quest: Quest) => void;
+  updateQuestProgress: (
+    type: string,
+    targetId: string,
+    amount?: number
+  ) => void;
+  completeQuest: (id: string) => void;
+  abandonQuest: (id: string) => void;
 }

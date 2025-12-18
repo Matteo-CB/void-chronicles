@@ -2,13 +2,13 @@ import { StateCreator } from "zustand";
 import { GameStore } from "../types";
 import { Direction, Item, Stats } from "@/types/game";
 import { POTION_ITEM } from "@/lib/data/items";
+import { CLASSES } from "@/lib/data/classes";
 
-// Extension correcte qui respecte l'interface Item
 interface WeaponItem extends Item {
   onHitEffect?: {
     type: string;
     value: number;
-    chance: number; // Ajout de chance pour matcher l'interface Item
+    chance: number;
   };
 }
 
@@ -25,6 +25,8 @@ export const createPlayerSlice: StateCreator<
     | "incrementAttribute"
     | "unlockMastery"
     | "closeLevelUp"
+    | "startGameWithClass"
+    | "dash"
   >
 > = (set, get) => ({
   movePlayer: (direction: Direction) => {
@@ -69,11 +71,12 @@ export const createPlayerSlice: StateCreator<
         lifesteal += weapon.onHitEffect.value;
       }
     }
-    // ... (reste inchangé)
+
     if (player.equipment.armor) {
       def += player.equipment.armor.stats?.defense || 0;
       maxHp += player.equipment.armor.stats?.maxHp || 0;
     }
+
     if (player.equipment.accessory) {
       maxHp += player.equipment.accessory.stats?.maxHp || 0;
       maxMana += player.equipment.accessory.stats?.maxMana || 0;
@@ -112,6 +115,7 @@ export const createPlayerSlice: StateCreator<
           armorPen: armorPen,
           spellPower: spellPwr,
           cooldownReduction: Math.min(0.5, cdr),
+          // On s'assure que les HP/Mana actuels ne dépassent pas le nouveau max
           hp: Math.min(state.player.stats.hp, Math.floor(maxHp)),
           mana: Math.min(state.player.stats.mana, Math.floor(maxMana)),
         },
@@ -121,7 +125,6 @@ export const createPlayerSlice: StateCreator<
 
   equipSpell: (spellId: string, slotIndex: number) => {
     const { player } = get();
-    // Gestion des types null/string pour equippedSpells
     const newEquipped = [...player.equippedSpells];
     newEquipped[slotIndex] = spellId;
     set({ player: { ...player, equippedSpells: newEquipped } });
@@ -185,12 +188,112 @@ export const createPlayerSlice: StateCreator<
     newMasteries[mIndex] = mastery;
 
     set({
-      player: { ...player, masteries: newMasteries, masteryPoints: newPoints },
+      player: {
+        ...player,
+        masteries: newMasteries,
+        masteryPoints: newPoints,
+      },
     });
     calculateStats();
   },
 
   closeLevelUp: () => {
     set({ gameState: "playing" });
+  },
+
+  startGameWithClass: (classId: string) => {
+    const { initGame } = get();
+    const selectedClass = CLASSES.find((c) => c.id === classId) || CLASSES[0];
+
+    // On lance le jeu normalement (reset map etc)
+    initGame(false);
+
+    // On applique ensuite le template de classe
+    set((state) => {
+      const newStats = { ...state.player.stats, ...selectedClass.baseStats };
+      // S'assurer que HP/Mana sont au max au départ
+      newStats.hp = newStats.maxHp;
+      newStats.mana = newStats.maxMana;
+
+      // Inventaire de départ
+      const startInv = [...state.inventory];
+      if (selectedClass.startingEquipment.potionCount > 0) {
+        for (let i = 0; i < selectedClass.startingEquipment.potionCount; i++) {
+          const emptyIdx = startInv.findIndex((item) => item === null);
+          const potion = { ...POTION_ITEM, id: `start_pot_${i}_${Date.now()}` };
+          if (emptyIdx !== -1) startInv[emptyIdx] = potion;
+          else if (startInv.length < 30) startInv.push(potion);
+        }
+      }
+
+      return {
+        player: {
+          ...state.player,
+          classId: selectedClass.id,
+          stats: newStats,
+          inventory: startInv,
+        },
+      };
+    });
+
+    get().calculateStats();
+  },
+
+  dash: () => {
+    const { player, map, spawnParticles, addLog } = get();
+    const now = Date.now();
+    const COOLDOWN = 1000;
+
+    if (player.lastDashTime && now - player.lastDashTime < COOLDOWN) return;
+
+    const DASH_DIST = 3;
+    let dx = 0,
+      dy = 0;
+    switch (player.direction) {
+      case "up":
+        dy = -1;
+        break;
+      case "down":
+        dy = 1;
+        break;
+      case "left":
+        dx = -1;
+        break;
+      case "right":
+        dx = 1;
+        break;
+    }
+
+    let finalX = player.position.x;
+    let finalY = player.position.y;
+
+    for (let i = 1; i <= DASH_DIST; i++) {
+      const checkX = Math.round(player.position.x + dx * i);
+      const checkY = Math.round(player.position.y + dy * i);
+      if (
+        checkY < 0 ||
+        checkY >= map.length ||
+        checkX < 0 ||
+        checkX >= map[0].length
+      )
+        break;
+      if (map[checkY][checkX].type === "wall") break;
+      finalX = checkX;
+      finalY = checkY;
+    }
+
+    if (finalX !== player.position.x || finalY !== player.position.y) {
+      spawnParticles(player.position.x, player.position.y, "#fff", 5, "normal");
+
+      set((state) => ({
+        player: {
+          ...state.player,
+          position: { x: finalX, y: finalY },
+          lastDashTime: now,
+        },
+        screenShake: 2,
+      }));
+      addLog("Dash !");
+    }
   },
 });

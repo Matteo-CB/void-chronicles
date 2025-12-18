@@ -52,10 +52,12 @@ export default function StoryOverlay() {
     }
 
     if (isTyping) {
+      // Si le texte est en train d'être tapé, on l'affiche en entier instantanément
       if (typingIntervalRef.current) clearInterval(typingIntervalRef.current);
       setDisplayedText(currentLine.text);
       setIsTyping(false);
     } else {
+      // Sinon on passe à la ligne suivante
       if (lineIndex < cutscene.dialogues.length - 1) {
         setLineIndex((prev) => prev + 1);
       } else {
@@ -64,6 +66,7 @@ export default function StoryOverlay() {
     }
   }, [isTyping, currentLine, lineIndex, cutscene, advanceCutscene]);
 
+  // Gestion Clavier
   useEffect(() => {
     if (!cutscene) return;
 
@@ -77,17 +80,23 @@ export default function StoryOverlay() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleAdvance, cutscene]);
 
+  // Gestion Manette (Améliorée avec Debounce)
   useEffect(() => {
     if (!cutscene) return;
 
     let animationFrameId: number;
     let wasPressed = false;
+    let lastPressTime = 0; // Anti-rebond
+
     const pollGamepad = () => {
       const gamepad = navigator.getGamepads()[0];
       if (gamepad) {
-        const isPressed = gamepad.buttons[0].pressed;
-        if (isPressed && !wasPressed) {
+        const isPressed = gamepad.buttons[0].pressed; // Bouton A
+        const now = Date.now();
+
+        if (isPressed && !wasPressed && now - lastPressTime > 200) {
           handleAdvance();
+          lastPressTime = now;
         }
         wasPressed = isPressed;
       }
@@ -97,6 +106,7 @@ export default function StoryOverlay() {
     return () => cancelAnimationFrame(animationFrameId);
   }, [handleAdvance, cutscene]);
 
+  // Effet Machine à Écrire
   useEffect(() => {
     if (!currentLine) return;
 
@@ -114,19 +124,20 @@ export default function StoryOverlay() {
         if (typingIntervalRef.current) clearInterval(typingIntervalRef.current);
         setIsTyping(false);
       }
-    }, 25);
+    }, 25); // Vitesse de frappe
 
     return () => {
       if (typingIntervalRef.current) clearInterval(typingIntervalRef.current);
     };
-  }, [safeLineIndex, currentLine]); // Utilisation de safeLineIndex
+  }, [safeLineIndex, currentLine]); // Utilisation de safeLineIndex pour la dépendance
 
   if (!currentCutsceneId || !cutscene || !currentLine) return null;
 
   const speaker = STORY.characters[currentLine.speakerId];
 
   return (
-    <div className="absolute inset-0 z-50 bg-black/90 flex flex-col items-center justify-end pb-12">
+    <div className="absolute inset-0 z-50 bg-black/90 flex flex-col items-center justify-end pb-12 font-pixel">
+      {/* Arrière-plan dynamique */}
       <div
         key={cutscene.backgroundId}
         className={`absolute inset-0 opacity-40 bg-cover bg-center transition-all duration-1000 ${cutscene.backgroundId}`}
@@ -134,6 +145,7 @@ export default function StoryOverlay() {
         <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black" />
       </div>
 
+      {/* Portrait du personnage */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <AnimatePresence mode="wait">
           <motion.div
@@ -145,14 +157,21 @@ export default function StoryOverlay() {
             className="relative"
           >
             <div
-              className="w-64 h-64 md:w-96 md:h-96 border-4 shadow-[0_0_100px_rgba(0,0,0,0.8)] flex items-center justify-center bg-zinc-900/50 backdrop-blur-sm"
+              className="w-64 h-64 md:w-96 md:h-96 border-4 shadow-[0_0_100px_rgba(0,0,0,0.8)] flex items-center justify-center bg-zinc-900/50 backdrop-blur-sm relative overflow-hidden"
               style={{ borderColor: speaker?.color || "#fff" }}
             >
+              {/* Effet de lueur interne */}
+              <div
+                className="absolute inset-0 opacity-20"
+                style={{ backgroundColor: speaker?.color || "#fff" }}
+              />
+
+              {/* Placeholder Sprite ou Texte */}
               <span
-                className="text-6xl font-black uppercase tracking-tighter opacity-80"
+                className="text-9xl font-black uppercase tracking-tighter opacity-80 drop-shadow-2xl"
                 style={{
                   color: speaker?.color || "#fff",
-                  textShadow: `0 0 20px ${speaker?.color}`,
+                  textShadow: `0 0 40px ${speaker?.color}`,
                 }}
               >
                 {speaker?.spriteKey?.charAt(0) || "?"}
@@ -162,6 +181,7 @@ export default function StoryOverlay() {
         </AnimatePresence>
       </div>
 
+      {/* Boîte de Dialogue */}
       <motion.div
         key={safeLineIndex}
         className="relative z-10 w-full max-w-4xl mx-4 cursor-pointer group"
@@ -169,9 +189,10 @@ export default function StoryOverlay() {
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
       >
+        {/* Nom du personnage (Style étiquette) */}
         <div className="flex items-end mb-0 ml-8">
           <div
-            className="px-8 py-2 text-xl font-bold text-black transform -skew-x-12 uppercase tracking-widest border-t-2 border-l-2 border-r-2 border-white/20 shadow-[0_-5px_20px_rgba(0,0,0,0.5)]"
+            className="px-8 py-2 text-xl font-bold text-black transform -skew-x-12 uppercase tracking-widest border-t-2 border-l-2 border-r-2 border-white/20 shadow-[0_-5px_20px_rgba(0,0,0,0.5)] relative z-20"
             style={{ backgroundColor: speaker?.color || "#fff", color: "#000" }}
           >
             <span className="inline-block transform skew-x-12">
@@ -180,6 +201,7 @@ export default function StoryOverlay() {
           </div>
         </div>
 
+        {/* Corps du texte */}
         <div className="bg-zinc-950/95 border-2 border-zinc-700 p-8 rounded-tr-xl rounded-br-xl rounded-bl-xl shadow-2xl backdrop-blur-xl min-h-[180px] flex flex-col justify-between relative overflow-hidden">
           <div className="absolute inset-0 bg-[url('/scanlines.png')] opacity-10 pointer-events-none" />
 
@@ -190,6 +212,7 @@ export default function StoryOverlay() {
             )}
           </p>
 
+          {/* Indicateurs de contrôle */}
           <div className="self-end mt-4 flex items-center gap-4">
             <div className="flex gap-2 text-xs uppercase tracking-widest text-zinc-600 opacity-50">
               <span className="border border-zinc-700 px-2 py-1 rounded">
@@ -203,8 +226,8 @@ export default function StoryOverlay() {
               </span>
             </div>
             {!isTyping && (
-              <span className="text-xs uppercase tracking-[0.3em] text-zinc-500 animate-pulse">
-                Suivant ▶
+              <span className="text-xs uppercase tracking-[0.3em] text-zinc-500 animate-pulse flex items-center gap-1">
+                Suivant <span className="text-lg">▶</span>
               </span>
             )}
           </div>

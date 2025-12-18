@@ -9,6 +9,7 @@ export const useKeyboard = (triggerShake: () => void) => {
   const interact = useGameStore((state) => state.interact);
   const advanceDialogue = useGameStore((state) => state.advanceDialogue);
   const setInputMethod = useGameStore((state) => state.setInputMethod);
+  const dash = useGameStore((state) => state.dash); // Import du Dash
 
   // Actions de Menu
   const navigateMenu = useGameStore((state) => state.navigateMenu);
@@ -16,10 +17,13 @@ export const useKeyboard = (triggerShake: () => void) => {
   const useItem = useGameStore((state) => state.useItem);
   const unequipItem = useGameStore((state) => state.unequipItem);
   const equipSpell = useGameStore((state) => state.equipSpell);
+  const buyItem = useGameStore((state) => state.buyItem);
 
   const inventory = useGameStore((state) => state.inventory);
   const menuSelectionIndex = useGameStore((state) => state.menuSelectionIndex);
   const player = useGameStore((state) => state.player);
+  const enemies = useGameStore((state) => state.enemies);
+  const currentMerchantId = useGameStore((state) => state.currentMerchantId);
 
   const gameState = useGameStore((state) => state.gameState);
   const setGameState = useGameStore((state) => state.setGameState);
@@ -31,11 +35,40 @@ export const useKeyboard = (triggerShake: () => void) => {
       keysPressed.current[e.code] = true;
       keysPressed.current[e.key] = true;
 
-      // --- 1. NAVIGATION DANS LES MENUS (INVENTAIRE / GRIMOIRE) ---
-      if (gameState === "inventory" || gameState === "spellbook") {
-        e.preventDefault(); // Empêche le scroll navigateur
+      const isMenuOpen = ["inventory", "spellbook", "quests"].includes(
+        gameState
+      );
 
-        // Déplacement du curseur
+      // --- 1. OUVERTURE / FERMETURE (I) ---
+      if (e.code === "KeyI") {
+        if (isMenuOpen) {
+          setGameState("playing");
+        } else if (gameState === "playing") {
+          setGameState("inventory");
+        }
+        return;
+      }
+
+      // --- 2. NAVIGATION ONGLETS (TAB) ---
+      if (e.code === "Tab") {
+        e.preventDefault();
+        if (gameState === "inventory") setGameState("spellbook");
+        else if (gameState === "spellbook") setGameState("quests");
+        else if (gameState === "quests") setGameState("inventory");
+        else if (gameState === "playing") setGameState("inventory");
+        return;
+      }
+
+      // --- 3. NAVIGATION DANS LES MENUS ---
+      if (
+        gameState === "inventory" ||
+        gameState === "spellbook" ||
+        gameState === "shop" ||
+        gameState === "levelup" ||
+        gameState === "quests"
+      ) {
+        e.preventDefault();
+
         if (e.code === "ArrowUp" || e.code === "KeyW" || e.code === "KeyZ")
           navigateMenu("up");
         if (e.code === "ArrowDown" || e.code === "KeyS") navigateMenu("down");
@@ -43,10 +76,8 @@ export const useKeyboard = (triggerShake: () => void) => {
           navigateMenu("left");
         if (e.code === "ArrowRight" || e.code === "KeyD") navigateMenu("right");
 
-        // Validation (Entrée / Espace)
         if (e.code === "Enter" || e.code === "Space") {
           if (gameState === "inventory") {
-            // Gestion Équipement vs Inventaire
             if (menuSelectionIndex >= 100) {
               const slot =
                 menuSelectionIndex === 100
@@ -58,21 +89,30 @@ export const useKeyboard = (triggerShake: () => void) => {
             } else {
               const item = inventory[menuSelectionIndex];
               if (item) {
-                if (item.type === "potion" || (item as any).type === "scroll")
+                if (
+                  item.type === "potion" ||
+                  (item as any).type === "scroll" ||
+                  item.type === "spellbook" ||
+                  item.type === "consumable"
+                )
                   useItem(item.id);
                 else equipItem(item);
               }
             }
           } else if (gameState === "spellbook") {
-            // Gestion Grimoire
             if (menuSelectionIndex < 100) {
               const spell = player.spells[menuSelectionIndex];
               if (spell) equipSpell(spell.id, 0);
             }
+          } else if (gameState === "shop") {
+            const merchant = enemies.find((e) => e.id === currentMerchantId);
+            if (merchant && merchant.shopInventory) {
+              const item = merchant.shopInventory[menuSelectionIndex];
+              if (item) buyItem(item);
+            }
           }
         }
 
-        // Touches spécifiques Grimoire (1, 2, 3 pour équiper dans slot spécifique)
         if (gameState === "spellbook" && menuSelectionIndex < 100) {
           const spell = player.spells[menuSelectionIndex];
           if (spell) {
@@ -83,14 +123,14 @@ export const useKeyboard = (triggerShake: () => void) => {
         }
       }
 
-      // --- 2. GESTION DES ETATS GLOBAUX ---
+      // --- 4. ECHAP & RETOUR ---
       if (e.code === "Escape") {
         if (gameState === "playing") {
           setGameState("pause_menu");
         } else if (
-          ["pause_menu", "management_menu", "inventory", "spellbook"].includes(
-            gameState
-          )
+          isMenuOpen ||
+          gameState === "pause_menu" ||
+          gameState === "management_menu"
         ) {
           setGameState("playing");
         } else if (gameState === "shop" || gameState === "levelup") {
@@ -98,20 +138,25 @@ export const useKeyboard = (triggerShake: () => void) => {
         }
       }
 
-      if (e.code === "Tab" || e.key === "i" || e.key === "I") {
-        e.preventDefault();
-        if (gameState === "playing") setGameState("management_menu");
-        else if (
-          ["management_menu", "inventory", "spellbook"].includes(gameState)
-        )
-          setGameState("playing");
-        else if (gameState === "shop") closeUi();
+      // --- CORRECTION: Empêcher le scroll en jeu ---
+      if (gameState === "playing") {
+        if (
+          ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space"].includes(
+            e.code
+          )
+        ) {
+          e.preventDefault();
+        }
+
+        // --- AJOUT DASH ---
+        if (e.code === "Space" || e.code === "ShiftLeft") {
+          dash();
+        }
       }
 
-      // Si on est dans un menu, on arrête ici pour ne pas bouger le perso
       if (gameState !== "playing" && gameState !== "dialogue") return;
 
-      // --- 3. ACTIONS DE JEU (Mouvement géré par useGameLoop) ---
+      // --- 5. ACTIONS DE JEU ---
       if (["Space", "Enter", "KeyE"].includes(e.code)) {
         if (gameState === "dialogue") advanceDialogue();
         else interact();
@@ -166,6 +211,10 @@ export const useKeyboard = (triggerShake: () => void) => {
     menuSelectionIndex,
     player,
     equipSpell,
+    buyItem,
+    enemies,
+    currentMerchantId,
+    dash, // Dépendance
   ]);
 
   return keysPressed;

@@ -1,168 +1,106 @@
+"use client";
+
 import useGameStore from "@/store/gameStore";
-import { X, ShoppingBag, Coins, ShieldCheck, Gem, Star } from "lucide-react";
+import { X, ShoppingBag } from "lucide-react";
 import ShopItem from "./ShopItem";
-import { useEffect, useRef } from "react";
 
 export default function ShopUI() {
   const {
-    enemies,
     currentMerchantId,
+    enemies,
     closeShop,
-    player,
     buyItem,
+    player,
     menuSelectionIndex,
     inputMethod,
   } = useGameStore((state: any) => state);
 
-  const listRef = useRef<HTMLDivElement>(null);
   const merchant = enemies.find((e: any) => e.id === currentMerchantId);
-
-  // --- AUTO-SCROLL LOGIC ---
-  useEffect(() => {
-    if (listRef.current && menuSelectionIndex >= 0) {
-      // On cible directement l'enfant correspondant à l'index sélectionné
-      const selectedEl = listRef.current.children[
-        menuSelectionIndex
-      ] as HTMLElement;
-
-      if (selectedEl) {
-        selectedEl.scrollIntoView({
-          block: "nearest",
-          behavior: "smooth",
-        });
-      }
-    }
-  }, [menuSelectionIndex]);
 
   if (!merchant || !merchant.shopInventory) return null;
 
   return (
-    <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md animate-in fade-in duration-300 font-pixel">
-      <div className="relative w-[95vw] max-w-[1100px] h-[80vh] bg-[#0c0a09] border border-yellow-900/60 shadow-[0_0_80px_rgba(234,179,8,0.15)] rounded-xl flex flex-col overflow-hidden">
-        {/* Decorative ambient light */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-2/3 h-1 bg-gradient-to-r from-transparent via-yellow-700 to-transparent opacity-50"></div>
-
-        {/* HEADER */}
-        <div className="relative z-10 px-8 py-6 bg-gradient-to-b from-[#1c1917] to-[#0c0a09] border-b border-yellow-900/30 flex justify-between items-center shrink-0">
-          <div className="flex items-center gap-6">
-            <div className="w-16 h-16 rounded-xl bg-black border-2 border-yellow-900/50 flex items-center justify-center shadow-2xl relative overflow-hidden group">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-yellow-900/20 to-transparent group-hover:opacity-100 transition-opacity opacity-50"></div>
-              <ShoppingBag className="text-yellow-600 w-8 h-8 drop-shadow-md" />
+    <div className="absolute inset-0 flex items-center justify-center z-50 pointer-events-auto bg-black/60 backdrop-blur-sm">
+      <div className="w-full max-w-5xl h-[85vh] bg-zinc-950 border-2 border-zinc-800 rounded-xl shadow-2xl flex flex-col relative animate-in zoom-in-95 duration-200">
+        {/* Header */}
+        <div className="flex justify-between items-center p-6 border-b border-zinc-800 bg-[#0a0a0c]">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-yellow-900/10 rounded-xl border border-yellow-700/30">
+              <ShoppingBag className="text-yellow-500" size={28} />
             </div>
             <div>
-              <h2 className="text-2xl md:text-3xl font-serif text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-yellow-500 to-yellow-700 font-bold tracking-widest uppercase drop-shadow-sm">
-                {merchant.name}
+              <h2 className="text-3xl font-black uppercase tracking-widest text-white font-pixel">
+                Marchand
               </h2>
-              <div className="flex items-center gap-2 text-xs text-yellow-800/80 font-mono mt-1.5 uppercase tracking-wider">
-                <Gem size={10} />
-                <span>Marchand Itinérant</span>
-                <span className="mx-2 text-yellow-900/40">•</span>
-                <span className="text-yellow-700">Ouvert</span>
-              </div>
+              <p className="text-xs text-zinc-500 font-mono tracking-wide">
+                "J'ai ce qu'il vous faut, voyageur..."
+              </p>
             </div>
           </div>
 
           <div className="flex items-center gap-8">
-            <div className="flex flex-col items-end">
-              <span className="text-[10px] text-yellow-900/60 uppercase font-bold tracking-widest mb-1">
+            <div className="text-right bg-black/40 px-4 py-2 rounded-lg border border-zinc-800">
+              <span className="block text-[10px] text-zinc-500 uppercase tracking-wider mb-1">
                 Votre Or
               </span>
-              <div className="flex items-center gap-3 text-yellow-400 bg-black/40 px-4 py-2 rounded-lg border border-yellow-900/30 shadow-inner">
-                <span className="font-mono text-xl md:text-2xl font-bold tracking-tighter drop-shadow-md">
-                  {player.gold}
-                </span>
-                <Coins size={18} className="text-yellow-500" />
-              </div>
+              <span className="text-2xl font-bold text-yellow-400 font-mono flex items-center justify-end gap-2">
+                {player.gold} <span className="text-xs text-yellow-600">G</span>
+              </span>
             </div>
-
             <button
               onClick={closeShop}
-              className="group p-3 hover:bg-red-950/30 rounded-full transition-all border border-transparent hover:border-red-900/50"
+              className="p-2 hover:bg-zinc-800 rounded-full transition-colors group"
             >
               <X
+                className="text-zinc-500 group-hover:text-white transition-colors"
                 size={24}
-                className="text-zinc-600 group-hover:text-red-400 transition-colors"
               />
             </button>
           </div>
         </div>
 
-        {/* LISTE */}
-        <div className="flex-1 relative bg-[url('/noise.png')] bg-repeat opacity-90">
-          <div className="absolute inset-0 bg-gradient-to-b from-black/60 to-transparent pointer-events-none" />
-
-          {/* MODIFICATION CRITIQUE : 
-             On force grid-cols-3 pour correspondre à la logique de navigation manette (uiSlice).
-             Sur mobile (sm), on passe en 1 colonne, mais la logique manette (prévue pour desktop) 
-             restera fonctionnelle bien que visuellement le curseur sautera des lignes si on joue manette sur mobile.
-             C'est un compromis acceptable pour garantir la stabilité sur Desktop/Console.
-          */}
-          <div
-            ref={listRef}
-            className="absolute inset-0 p-8 overflow-y-auto gold-scroll grid grid-cols-3 gap-4 content-start"
-          >
-            {merchant.shopInventory.length === 0 ? (
-              <div className="col-span-full flex flex-col items-center justify-center h-full text-zinc-700 gap-4">
-                <ShoppingBag size={64} className="opacity-20" />
-                <p className="text-sm font-mono uppercase tracking-widest opacity-50">
-                  Rupture de stock
-                </p>
-              </div>
-            ) : (
-              merchant.shopInventory.map((item: any, idx: number) => {
-                // La sélection est active si l'index correspond ET que nous sommes en mode manette
-                // OU si l'objet est simplement survolé (géré par ShopItem pour la souris)
-                const isSelected = idx === menuSelectionIndex;
-
-                return (
-                  <div
-                    key={item.id || idx}
-                    className={`transform transition-all duration-200 ${
-                      isSelected ? "scale-105 z-10" : "scale-100 z-0"
-                    }`}
-                  >
-                    <ShopItem
-                      item={item}
-                      canAfford={player.gold >= (item.value || 0)}
-                      isSelected={isSelected}
-                      onBuy={() => buyItem(item)}
-                    />
-                  </div>
-                );
-              })
-            )}
+        {/* Grid Content */}
+        <div className="flex-1 overflow-y-auto p-8 bg-[url('/noise.png')] opacity-100">
+          {/* CORRECTION ICI : Grid fixée à 3 colonnes maximum pour coller à la logique du store */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-20">
+            {merchant.shopInventory.map((item: any, idx: number) => (
+              <ShopItem
+                key={item.id}
+                item={item}
+                canAfford={player.gold >= (item.value || 0)}
+                isSelected={idx === menuSelectionIndex}
+                onBuy={() => {
+                  if (player.gold >= (item.value || 0)) buyItem(item);
+                }}
+              />
+            ))}
           </div>
         </div>
 
-        {/* FOOTER */}
-        <div className="relative z-10 bg-[#0c0a09] border-t border-yellow-900/30 p-4 flex justify-between items-center text-[10px] text-zinc-600 shrink-0 shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
-          <div className="flex gap-6 uppercase tracking-wider font-bold">
-            <div className="flex items-center gap-2">
-              <span className="bg-yellow-900/20 text-yellow-600 border border-yellow-900/40 px-1.5 py-0.5 rounded">
+        {/* Footer Hints */}
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-zinc-800 bg-zinc-950/95 backdrop-blur flex justify-between items-center text-xs text-zinc-500 font-mono z-20">
+          <div className="flex gap-6">
+            <span className="flex items-center gap-2">
+              <kbd className="bg-zinc-800 px-2 py-1 rounded border border-zinc-700 text-zinc-300 font-bold shadow-sm">
                 {inputMethod === "gamepad" ? "A" : "ENTRÉE"}
-              </span>
-              <span>Acheter</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="bg-zinc-900 text-zinc-500 border border-zinc-800 px-1.5 py-0.5 rounded">
-                {inputMethod === "gamepad" ? "B" : "ECHAP"}
-              </span>
-              <span>Quitter</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="bg-zinc-900 text-zinc-500 border border-zinc-800 px-1.5 py-0.5 rounded">
-                {inputMethod === "gamepad" ? "DIR" : "FLÈCHES"}
-              </span>
-              <span>Naviguer</span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 text-yellow-900/40">
-            <Star size={10} />
-            <span className="uppercase tracking-[0.2em] text-[8px]">
-              La Guilde des Marchands
+              </kbd>{" "}
+              Acheter
             </span>
-            <Star size={10} />
+            <span className="flex items-center gap-2">
+              <kbd className="bg-zinc-800 px-2 py-1 rounded border border-zinc-700 text-zinc-300 font-bold shadow-sm">
+                {inputMethod === "gamepad" ? "B" : "ECHAP"}
+              </kbd>{" "}
+              Quitter
+            </span>
+            <span className="flex items-center gap-2">
+              <kbd className="bg-zinc-800 px-2 py-1 rounded border border-zinc-700 text-zinc-300 font-bold shadow-sm">
+                {inputMethod === "gamepad" ? "↕↔" : "FLÈCHES"}
+              </kbd>{" "}
+              Naviguer
+            </span>
+          </div>
+          <div className="text-[10px] text-zinc-700 uppercase tracking-widest">
+            Offres limitées
           </div>
         </div>
       </div>

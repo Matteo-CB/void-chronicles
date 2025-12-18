@@ -19,6 +19,7 @@ export const createUISlice: StateCreator<
     | "removeSpeechBubble"
     | "setGameState"
     | "navigateMenu"
+    | "spawnParticles"
   >
 > = (set, get) => ({
   logs: [],
@@ -61,13 +62,12 @@ export const createUISlice: StateCreator<
 
       // Zone Équipement (Index 100+)
       if (menuSelectionIndex >= 100) {
-        // 100: Arme, 101: Armure, 102: Accessoire
         if (dir === "up" && menuSelectionIndex > 100)
           set({ menuSelectionIndex: menuSelectionIndex - 1 });
         if (dir === "down" && menuSelectionIndex < 102)
           set({ menuSelectionIndex: menuSelectionIndex + 1 });
 
-        // Retour vers la Grille (Colonne 0)
+        // Retour vers la Grille
         if (dir === "right") {
           const targetRow =
             menuSelectionIndex === 100 ? 0 : menuSelectionIndex === 101 ? 2 : 4;
@@ -83,7 +83,7 @@ export const createUISlice: StateCreator<
         } else if (dir === "down") {
           if (newIndex + COLS < TOTAL_INV) newIndex += COLS;
         } else if (dir === "left") {
-          // Si on est sur la colonne de gauche, on va vers l'équipement
+          // Vers l'équipement si colonne de gauche
           if (newIndex % COLS === 0) {
             const row = Math.floor(newIndex / COLS);
             const target = row < 2 ? 100 : row < 3 ? 101 : 102;
@@ -93,8 +93,10 @@ export const createUISlice: StateCreator<
             newIndex -= 1;
           }
         } else if (dir === "right") {
-          if (newIndex % COLS < COLS - 1 && newIndex + 1 < TOTAL_INV)
+          // Navigation fluide avec wrapping simple si fin de ligne
+          if (newIndex + 1 < TOTAL_INV) {
             newIndex += 1;
+          }
         }
 
         set({ menuSelectionIndex: newIndex });
@@ -105,13 +107,13 @@ export const createUISlice: StateCreator<
       const maxList = Math.max(0, player.spells.length - 1);
 
       if (menuSelectionIndex >= 100) {
-        if (dir === "left") set({ menuSelectionIndex: 0 }); // Retour liste
+        if (dir === "left") set({ menuSelectionIndex: 0 });
         if (dir === "up" && menuSelectionIndex > 100)
           set({ menuSelectionIndex: menuSelectionIndex - 1 });
         if (dir === "down" && menuSelectionIndex < 102)
           set({ menuSelectionIndex: menuSelectionIndex + 1 });
       } else {
-        if (dir === "right") set({ menuSelectionIndex: 100 }); // Vers Slots
+        if (dir === "right") set({ menuSelectionIndex: 100 });
         else if (dir === "up")
           set({ menuSelectionIndex: Math.max(0, menuSelectionIndex - 1) });
         else if (dir === "down")
@@ -120,13 +122,29 @@ export const createUISlice: StateCreator<
           });
       }
     }
+    // --- LOGIQUE QUÊTES ---
+    else if (gameState === "quests") {
+      const quests = player.quests || [];
+      const maxQuests = Math.max(0, quests.length - 1);
+
+      if (dir === "up") {
+        set({ menuSelectionIndex: Math.max(0, menuSelectionIndex - 1) });
+      }
+      if (dir === "down") {
+        set({
+          menuSelectionIndex: Math.min(maxQuests, menuSelectionIndex + 1),
+        });
+      }
+    }
     // --- LOGIQUE BOUTIQUE (SHOP) ---
     else if (gameState === "shop") {
       const merchant = enemies.find((e) => e.id === currentMerchantId);
       if (!merchant || !merchant.shopInventory) return;
 
       const totalItems = merchant.shopInventory.length;
-      const COLS = 3; // On assume une grille de 3 colonnes sur desktop/large
+      if (totalItems === 0) return;
+
+      const COLS = 3; // On a forcé l'affichage à 3 colonnes, donc la logique fonctionnera
 
       let newIndex = menuSelectionIndex;
 
@@ -135,13 +153,21 @@ export const createUISlice: StateCreator<
       } else if (dir === "down") {
         if (newIndex + COLS < totalItems) newIndex += COLS;
       } else if (dir === "left") {
-        if (newIndex % COLS !== 0) newIndex -= 1;
+        // Wrapping gauche : si début de ligne, on remonte à la fin de la ligne précédente
+        if (newIndex > 0) newIndex -= 1;
       } else if (dir === "right") {
-        if (newIndex % COLS < COLS - 1 && newIndex + 1 < totalItems)
-          newIndex += 1;
+        // Wrapping droite : si fin de ligne, on passe à la ligne suivante
+        if (newIndex + 1 < totalItems) newIndex += 1;
       }
 
       set({ menuSelectionIndex: newIndex });
+    }
+    // --- LOGIQUE LEVEL UP ---
+    else if (gameState === "levelup") {
+      if (dir === "up" && menuSelectionIndex > 0)
+        set({ menuSelectionIndex: menuSelectionIndex - 1 });
+      if (dir === "down" && menuSelectionIndex < 3)
+        set({ menuSelectionIndex: menuSelectionIndex + 1 });
     }
   },
 
@@ -203,5 +229,32 @@ export const createUISlice: StateCreator<
     set((state) => ({
       speechBubbles: state.speechBubbles.filter((b) => b.id !== id),
     }));
+  },
+
+  spawnParticles: (
+    x: number,
+    y: number,
+    color: string,
+    count: number,
+    type: "blood" | "spark" | "normal" = "normal"
+  ) => {
+    const newParticles: any[] = [];
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = Math.random() * 0.15;
+      newParticles.push({
+        id: Math.random(),
+        x,
+        y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        life: 1.0,
+        color: color,
+        size: Math.random() * 0.1 + 0.05,
+        gravity: type === "blood" ? 0.02 : 0,
+        type: type,
+      });
+    }
+    set((s) => ({ particles: [...s.particles, ...newParticles] } as any));
   },
 });

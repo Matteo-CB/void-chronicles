@@ -44,50 +44,96 @@ const BASE_WEAPONS: Record<
   wand: [{ name: "Baguette", range: 4, dmg: 8 }],
 };
 
-// CORRECTION ICI : Type 'potion' et stats HP explicites
 export const POTION_ITEM: Item = {
   id: "potion",
   name: "Potion de Soin",
-  type: "potion", // Était 'consumable', passé à 'potion' pour sécurité
+  type: "potion",
   rarity: "common",
   value: 50,
   description: "Restaure 50 PV",
   visualColor: "#f43f5e",
   color: "#f43f5e",
   stats: {
-    hp: 50, // Ajout vital pour que useItem détecte le soin
+    hp: 50,
   },
   spriteKey: "POTION",
 };
 
+// --- BASE DE DONNÉES DES ARMES UNIQUES (POUR QUÊTES) ---
+export const WEAPON_DB: Record<string, Item> = {
+  SWORD_RARE: {
+    id: "template_sword_rare",
+    name: "Lame du Gardien",
+    type: "weapon",
+    rarity: "rare",
+    spriteKey: "WEAPON_SWORD",
+    value: 150,
+    description:
+      "Une lame offerte par un garde mourant. Elle vibre d'une énergie protectrice.",
+    visualColor: "#3b82f6",
+    color: "#3b82f6",
+    weaponType: "sword",
+    range: 1,
+    stats: {
+      attack: 18,
+      critChance: 0.1,
+      defense: 2,
+    },
+  },
+  BOW_EPIC: {
+    id: "template_bow_epic",
+    name: "Arc des Ombres",
+    type: "weapon",
+    rarity: "epic",
+    spriteKey: "WEAPON_BOW",
+    value: 300,
+    description: "Tire des flèches silencieuses.",
+    visualColor: "#a855f7",
+    color: "#a855f7",
+    weaponType: "bow",
+    range: 6,
+    stats: {
+      attack: 25,
+      critChance: 0.2,
+    },
+  },
+};
+
 export function generateLoot(level: number): Item {
-  const roll = Math.random();
+  // --- LOOT INTELLIGENT ---
+  // On ajoute un bonus de chance basé sur le niveau (1% par niveau, max 30%)
+  const levelLuckBonus = Math.min(0.3, level * 0.01);
+  const roll = Math.random() + levelLuckBonus;
+
   let rarity: Rarity = "common";
   let mult = 1;
-  let affixChance = 0.2;
+  // Plus on est profond, plus on a de chance d'avoir des affixes (préfixe/suffixe)
+  let affixChance = 0.2 + level * 0.005;
 
-  if (roll > 0.98) {
+  // Seuils ajustés pour une progression gratifiante
+  // Au niveau 1 (bonus 0.01), roll max = 1.01 -> Mythique impossible (faut > 1.15)
+  // Au niveau 20 (bonus 0.20), roll max = 1.20 -> Mythique possible
+  if (roll > 1.15) {
     rarity = "mythic";
     mult = 5;
-    affixChance = 1.0;
-  } else if (roll > 0.9) {
+    affixChance = 1.0; // Toujours des affixes sur du mythique
+  } else if (roll > 0.98) {
     rarity = "legendary";
     mult = 3.5;
     affixChance = 0.8;
-  } else if (roll > 0.75) {
+  } else if (roll > 0.85) {
     rarity = "epic";
     mult = 2;
-    affixChance = 0.5;
-  } else if (roll > 0.5) {
+    affixChance = 0.6;
+  } else if (roll > 0.6) {
     rarity = "rare";
     mult = 1.5;
-    affixChance = 0.3;
+    affixChance = 0.4;
   }
 
   const typeRoll = Math.random();
   let type: ItemType = "weapon";
 
-  // Chance d'avoir une potion en butin classique aussi
   if (typeRoll > 0.95) type = "potion";
   else if (typeRoll > 0.45) type = "armor";
   else if (typeRoll > 0.75) type = "accessory";
@@ -97,7 +143,7 @@ export function generateLoot(level: number): Item {
     return {
       ...POTION_ITEM,
       id: `loot_pot_${Math.random()}`,
-      value: 20, // Moins cher à la revente
+      value: 20,
     };
   }
 

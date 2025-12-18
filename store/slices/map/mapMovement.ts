@@ -2,7 +2,7 @@ import { StoreApi } from "zustand";
 import { Direction, Item } from "@/types/game";
 import { POTION_ITEM } from "@/lib/data/items";
 import { generateDungeon } from "@/lib/dungeon";
-import { calculateFOV } from "@/lib/dungeon/fov"; // IMPORT NOUVEAU
+import { calculateFOV } from "@/lib/dungeon/fov";
 import { GameStore } from "../../types";
 import storyData from "@/lib/data/storyData.json";
 
@@ -69,6 +69,7 @@ export const handleMovePlayer = (
       !e.isDead &&
       !e.isHidden &&
       e.type !== "rubble" &&
+      e.type !== "trap" && // On peut marcher sur les pièges !
       (e.isHostile || e.type === "barrel")
   );
   if (blocker) {
@@ -83,7 +84,10 @@ export const handleMovePlayer = (
       Math.round(e.position.y) === targetY &&
       !e.isDead &&
       !e.isHidden &&
-      (e.type === "chest" || e.type === "merchant" || e.type === "shrine")
+      (e.type === "chest" ||
+        e.type === "merchant" ||
+        e.type === "shrine" ||
+        e.type === "npc")
   );
   if (interactable) {
     interactMapLogic();
@@ -92,6 +96,58 @@ export const handleMovePlayer = (
 
   // 6. DÉPLACEMENT & VISIBILITÉ
   set((state) => {
+    // A. GESTION DES PIÈGES (NOUVEAU)
+    const trap = state.enemies.find(
+      (e) =>
+        Math.round(e.position.x) === targetX &&
+        Math.round(e.position.y) === targetY &&
+        e.type === "trap"
+    );
+
+    let newHp = state.player.stats.hp;
+    let trapEffectText: any = null;
+    let trapParticles: any[] = [];
+    let trapShake = 0;
+    let trapFlash = 0;
+
+    if (trap) {
+      const dmg = trap.stats.attack || 5;
+      // Réduction par la défense (min 1 dégât)
+      const actualDmg = Math.max(
+        1,
+        dmg - Math.floor(state.player.stats.defense / 2)
+      );
+      newHp = Math.max(0, newHp - actualDmg);
+      trapShake = 5;
+      trapFlash = 0.3;
+
+      // Feedback visuel
+      trapEffectText = {
+        id: Math.random(),
+        x: targetX,
+        y: targetY - 0.8,
+        text: `-${actualDmg}`,
+        color: "#dc2626", // Rouge sang
+        life: 1.0,
+        isCrit: true,
+      };
+
+      // Particules de sang
+      for (let i = 0; i < 5; i++) {
+        trapParticles.push({
+          x: targetX + 0.5,
+          y: targetY + 0.5,
+          vx: (Math.random() - 0.5) * 0.2,
+          vy: (Math.random() - 0.5) * 0.2,
+          life: 0.8,
+          color: "#dc2626",
+          size: 2 + Math.random() * 2,
+          gravity: 0.02,
+        });
+      }
+    }
+
+    // B. LOOT
     const itemsToLoot = state.enemies.filter(
       (e) =>
         Math.round(e.position.x) === targetX &&
@@ -101,62 +157,53 @@ export const handleMovePlayer = (
         (e.type === "gold" || e.type === "potion" || e.type === "item")
     );
 
-    // Mouvement simple sans loot
-    if (itemsToLoot.length === 0) {
-      // MISE A JOUR FOV
-      const newMap = calculateFOV(state.map, { x: targetX, y: targetY });
-
-      return {
-        map: newMap, // On met à jour la map avec le nouveau FOV
-        player: { ...state.player, position: { x: targetX, y: targetY } },
-      };
-    }
-
-    // Gestion Loot (identique à avant)
+    // Initialisation pour retour
     let goldGained = 0;
     let potionFound = false;
     let inventoryFull = false;
     const idsToRemove = new Set<string>();
-    const textsToAdd: any[] = [];
-    const particlesToAdd: any[] = [];
+    const textsToAdd: any[] = trapEffectText ? [trapEffectText] : [];
+    const particlesToAdd: any[] = [...trapParticles];
 
-    itemsToLoot.forEach((item) => {
-      idsToRemove.add(item.id);
-      if (item.type === "gold") {
-        const val = item.value || Math.floor(Math.random() * 6) + 4;
-        goldGained += val;
-        textsToAdd.push({
-          id: Math.random(),
-          x: targetX,
-          y: targetY - 0.6,
-          text: `+${val}`,
-          color: "#fbbf24",
-          life: 0.8,
-          isCrit: true,
-        });
-        for (let i = 0; i < 3; i++) {
-          particlesToAdd.push({
-            x: targetX + 0.5,
-            y: targetY + 0.5,
-            vx: (Math.random() - 0.5) * 0.1,
-            vy: -0.1,
-            life: 0.5,
+    if (itemsToLoot.length > 0) {
+      itemsToLoot.forEach((item) => {
+        idsToRemove.add(item.id);
+        if (item.type === "gold") {
+          const val = item.value || Math.floor(Math.random() * 6) + 4;
+          goldGained += val;
+          textsToAdd.push({
+            id: Math.random(),
+            x: targetX,
+            y: targetY - 0.6,
+            text: `+${val}`,
             color: "#fbbf24",
-            size: 3,
+            life: 0.8,
+            isCrit: true,
+          });
+          for (let i = 0; i < 3; i++) {
+            particlesToAdd.push({
+              x: targetX + 0.5,
+              y: targetY + 0.5,
+              vx: (Math.random() - 0.5) * 0.1,
+              vy: -0.1,
+              life: 0.5,
+              color: "#fbbf24",
+              size: 3,
+            });
+          }
+        } else if (item.type === "potion") {
+          potionFound = true;
+          textsToAdd.push({
+            id: Math.random(),
+            x: targetX,
+            y: targetY - 0.5,
+            text: "POTION",
+            color: "#ef4444",
+            life: 1.0,
           });
         }
-      } else if (item.type === "potion") {
-        potionFound = true;
-        textsToAdd.push({
-          id: Math.random(),
-          x: targetX,
-          y: targetY - 0.5,
-          text: "POTION",
-          color: "#ef4444",
-          life: 1.0,
-        });
-      }
-    });
+      });
+    }
 
     let newInventory = [...state.inventory];
     if (potionFound) {
@@ -176,8 +223,9 @@ export const handleMovePlayer = (
     let newLogs = state.logs;
     if (goldGained > 0)
       newLogs = [...state.logs, `+${goldGained} Or`].slice(-20);
+    if (trap) newLogs = [...newLogs, "Aïe ! Un piège !"].slice(-20);
 
-    // MISE A JOUR FOV AVEC LOOT
+    // MISE A JOUR FOV
     const newMap = calculateFOV(state.map, { x: targetX, y: targetY });
 
     return {
@@ -186,12 +234,15 @@ export const handleMovePlayer = (
         ...state.player,
         position: { x: targetX, y: targetY },
         gold: finalGold,
+        stats: { ...state.player.stats, hp: newHp }, // Application dégâts piège
       },
       enemies: newEnemies,
       inventory: newInventory,
       floatingTexts: [...state.floatingTexts, ...textsToAdd],
       particles: [...state.particles, ...particlesToAdd],
       logs: newLogs,
+      screenShake: Math.max(state.screenShake, trapShake),
+      damageFlash: Math.max(state.damageFlash, trapFlash),
     };
   });
 
@@ -222,7 +273,7 @@ export const handleMovePlayer = (
       const mapWithFOV = calculateFOV(map, spawn);
 
       const story = storyData as any;
-      const evt = story.levelEvents[next.toString()];
+      const evt = story.levelEvents?.[next.toString()];
 
       set({
         map: mapWithFOV,

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import useGameStore from "@/store/gameStore";
+import { CLASSES } from "@/lib/data/classes"; // Import des classes
 import {
   Gamepad2,
   Keyboard,
@@ -10,6 +11,11 @@ import {
   Plus,
   HardDrive,
   Skull,
+  Sword,
+  Shield,
+  Zap,
+  Target,
+  ArrowRight,
 } from "lucide-react";
 
 type SaveMeta = {
@@ -17,13 +23,20 @@ type SaveMeta = {
   level: number;
   floor: number;
   gold: number;
+  classId?: string; // Ajout pour afficher la classe dans le slot
 };
 
 export default function TitleScreen() {
   const initGame = useGameStore((s) => s.initGame);
+  const startGameWithClass = useGameStore((s) => s.startGameWithClass); // Action pour lancer avec classe
+
   const [slots, setSlots] = useState<Record<number, SaveMeta>>({});
   const [selectedSlot, setSelectedSlot] = useState<number>(1);
   const [animate, setAnimate] = useState(false);
+
+  // NOUVEAU STATE : Gestion de la vue (Slots ou Classes)
+  const [view, setView] = useState<"slots" | "classes">("slots");
+  const [selectedClassIdx, setSelectedClassIdx] = useState(0);
 
   // Refs pour la gestion des inputs (évite les re-renders inutiles)
   const lastInputTime = useRef<number>(0);
@@ -31,7 +44,6 @@ export default function TitleScreen() {
 
   // Chargement des sauvegardes
   useEffect(() => {
-    // CORRECTION : Clé de sauvegarde mise à jour
     const meta = localStorage.getItem("zero_cycle_meta");
     if (meta) {
       setSlots(JSON.parse(meta));
@@ -41,24 +53,45 @@ export default function TitleScreen() {
 
   // --- ACTIONS ---
 
-  const startGame = useCallback(
+  const handleSlotSelect = useCallback(
     (slotId: number) => {
       const hasSave = !!slots[slotId];
-      initGame(hasSave, slotId);
+      if (hasSave) {
+        // Si sauvegarde existe, on charge direct
+        initGame(true, slotId);
+      } else {
+        // Si slot vide, on va vers la sélection de classe
+        // On mémorise le slot choisi dans le store (via initGame ou state local si besoin,
+        // ici on suppose que startGameWithClass gère le slot actif ou on le passera)
+        // Pour simplifier, on stocke le slot dans le store via une action temporaire ou on le passe
+        // Mais comme startGameWithClass ne prend que classId, on doit d'abord initialiser le slot
+
+        // Etape 1 : On définit le slot courant (sans charger)
+        useGameStore.setState({ currentSlot: slotId });
+        setView("classes");
+      }
     },
     [slots, initGame]
   );
+
+  const confirmClassSelection = useCallback(() => {
+    const classId = CLASSES[selectedClassIdx].id;
+    if (startGameWithClass) {
+      startGameWithClass(classId);
+    } else {
+      // Fallback
+      initGame(false);
+    }
+  }, [selectedClassIdx, startGameWithClass, initGame]);
 
   const deleteSave = useCallback(
     (slotId: number) => {
       if (!slots[slotId]) return;
       if (confirm("Effacer ce personnage définitivement ?")) {
-        // CORRECTION : Clé de sauvegarde slot
         localStorage.removeItem(`zero_cycle_save_slot_${slotId}`);
         const newSlots = { ...slots };
         delete newSlots[slotId];
         setSlots(newSlots);
-        // CORRECTION : Clé de sauvegarde meta
         localStorage.setItem("zero_cycle_meta", JSON.stringify(newSlots));
       }
     },
@@ -67,14 +100,28 @@ export default function TitleScreen() {
 
   // --- GESTION DES INPUTS (Clavier & Manette) ---
 
-  const handleNavigation = useCallback((direction: "up" | "down") => {
-    setSelectedSlot((prev) => {
-      if (direction === "up") return prev > 1 ? prev - 1 : 3;
-      if (direction === "down") return prev < 3 ? prev + 1 : 1;
-      return prev;
-    });
-  }, []);
+  const handleNavigation = useCallback(
+    (direction: "up" | "down" | "left" | "right") => {
+      if (view === "slots") {
+        setSelectedSlot((prev) => {
+          if (direction === "up") return prev > 1 ? prev - 1 : 3;
+          if (direction === "down") return prev < 3 ? prev + 1 : 1;
+          return prev;
+        });
+      } else {
+        // Navigation Classes (Gauche / Droite)
+        setSelectedClassIdx((prev) => {
+          if (direction === "left") return Math.max(0, prev - 1);
+          if (direction === "right")
+            return Math.min(CLASSES.length - 1, prev + 1);
+          return prev;
+        });
+      }
+    },
+    [view]
+  );
 
+  // Boucle d'Input (Manette)
   useEffect(() => {
     let animationFrameId: number;
 
@@ -88,34 +135,59 @@ export default function TitleScreen() {
 
       if (gp) {
         // Navigation Stick / D-Pad
-        const axisY = gp.axes[1]; // Stick gauche vertical
+        const axisY = gp.axes[1];
+        const axisX = gp.axes[0];
         const dpadUp = gp.buttons[12]?.pressed;
         const dpadDown = gp.buttons[13]?.pressed;
+        const dpadLeft = gp.buttons[14]?.pressed;
+        const dpadRight = gp.buttons[15]?.pressed;
 
         if (now - lastInputTime.current > COOLDOWN) {
-          if (axisY < -0.5 || dpadUp) {
-            handleNavigation("up");
-            lastInputTime.current = now;
-          } else if (axisY > 0.5 || dpadDown) {
-            handleNavigation("down");
-            lastInputTime.current = now;
+          if (view === "slots") {
+            if (axisY < -0.5 || dpadUp) {
+              handleNavigation("up");
+              lastInputTime.current = now;
+            } else if (axisY > 0.5 || dpadDown) {
+              handleNavigation("down");
+              lastInputTime.current = now;
+            }
+          } else {
+            if (axisX < -0.5 || dpadLeft) {
+              handleNavigation("left");
+              lastInputTime.current = now;
+            } else if (axisX > 0.5 || dpadRight) {
+              handleNavigation("right");
+              lastInputTime.current = now;
+            }
           }
         }
 
-        // Boutons (A/Cross = Valider, X/Square = Supprimer)
-        // On utilise un verrou pour ne pas spammer l'action sur une frame
+        // Boutons (A/Cross = Valider, X/Square = Supprimer, B/Circle = Retour)
         if (gp.buttons[0]?.pressed) {
+          // A
           if (!buttonPressed.current["A"]) {
-            startGame(selectedSlot);
+            if (view === "slots") handleSlotSelect(selectedSlot);
+            else confirmClassSelection();
             buttonPressed.current["A"] = true;
           }
         } else {
           buttonPressed.current["A"] = false;
         }
 
+        if (gp.buttons[1]?.pressed) {
+          // B
+          if (!buttonPressed.current["B"]) {
+            if (view === "classes") setView("slots");
+            buttonPressed.current["B"] = true;
+          }
+        } else {
+          buttonPressed.current["B"] = false;
+        }
+
         if (gp.buttons[2]?.pressed || gp.buttons[3]?.pressed) {
+          // X / Y
           if (!buttonPressed.current["X"]) {
-            deleteSave(selectedSlot);
+            if (view === "slots") deleteSave(selectedSlot);
             buttonPressed.current["X"] = true;
           }
         } else {
@@ -128,29 +200,53 @@ export default function TitleScreen() {
 
     // 2. KEYBOARD LISTENERS
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.repeat) return; // Ignore l'appui long natif pour les actions critiques
+      if (e.repeat) return;
 
-      switch (e.key) {
-        case "ArrowUp":
-        case "z":
-        case "Z":
-        case "w":
-        case "W":
-          handleNavigation("up");
-          break;
-        case "ArrowDown":
-        case "s":
-        case "S":
-          handleNavigation("down");
-          break;
-        case "Enter":
-        case " ":
-          startGame(selectedSlot);
-          break;
-        case "Delete":
-        case "Backspace":
-          deleteSave(selectedSlot);
-          break;
+      if (view === "slots") {
+        switch (e.key) {
+          case "ArrowUp":
+          case "z":
+          case "Z":
+          case "w":
+          case "W":
+            handleNavigation("up");
+            break;
+          case "ArrowDown":
+          case "s":
+          case "S":
+            handleNavigation("down");
+            break;
+          case "Enter":
+          case " ":
+            handleSlotSelect(selectedSlot);
+            break;
+          case "Delete":
+          case "Backspace":
+            deleteSave(selectedSlot);
+            break;
+        }
+      } else {
+        switch (e.key) {
+          case "ArrowLeft":
+          case "q":
+          case "Q":
+          case "a":
+          case "A":
+            handleNavigation("left");
+            break;
+          case "ArrowRight":
+          case "d":
+          case "D":
+            handleNavigation("right");
+            break;
+          case "Enter":
+          case " ":
+            confirmClassSelection();
+            break;
+          case "Escape":
+            setView("slots");
+            break;
+        }
       }
     };
 
@@ -161,8 +257,164 @@ export default function TitleScreen() {
       window.removeEventListener("keydown", handleKeyDown);
       cancelAnimationFrame(animationFrameId);
     };
-  }, [selectedSlot, handleNavigation, startGame, deleteSave]);
+  }, [
+    selectedSlot,
+    view,
+    selectedClassIdx,
+    handleNavigation,
+    handleSlotSelect,
+    confirmClassSelection,
+    deleteSave,
+  ]);
 
+  const getIcon = (id: string) => {
+    switch (id) {
+      case "knight":
+        return <Shield size={32} />;
+      case "rogue":
+        return <Sword size={32} />;
+      case "mage":
+        return <Zap size={32} />;
+      case "ranger":
+        return <Target size={32} />;
+      default:
+        return <Sword size={32} />;
+    }
+  };
+
+  // --- RENDER : SÉLECTION DE CLASSE ---
+  if (view === "classes") {
+    return (
+      <div className="absolute inset-0 z-50 bg-[#050508] flex flex-col items-center justify-center font-pixel text-white select-none">
+        {/* FOND ANIMÉ (Même que slots) */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-30">
+          <div className="absolute top-[-50%] left-[-50%] w-[200%] h-[200%] bg-[radial-gradient(circle,rgba(30,27,75,0.4)_0%,transparent_60%)] animate-spin-slow"></div>
+          <div className="absolute inset-0 bg-[url('/noise.png')] opacity-20"></div>
+        </div>
+
+        <h2 className="text-3xl text-zinc-300 mb-8 uppercase tracking-widest animate-in fade-in slide-in-from-top-4 duration-500 z-10">
+          Choisissez votre Destinée
+        </h2>
+
+        <div className="flex gap-6 z-10 overflow-x-auto p-4 max-w-full items-center justify-center">
+          {CLASSES.map((cls, idx) => (
+            <div
+              key={cls.id}
+              onClick={() => setSelectedClassIdx(idx)}
+              className={`
+                            w-64 p-6 border-2 flex flex-col items-center gap-4 transition-all duration-300 cursor-pointer relative overflow-hidden group
+                            ${
+                              selectedClassIdx === idx
+                                ? "bg-zinc-900 scale-105 shadow-[0_0_30px_rgba(255,255,255,0.1)] z-10"
+                                : "bg-black/50 border-zinc-800 opacity-60 hover:opacity-100 scale-95"
+                            }
+                        `}
+              style={{
+                borderColor: selectedClassIdx === idx ? cls.color : "#27272a",
+              }}
+            >
+              {/* Fond coloré subtil */}
+              {selectedClassIdx === idx && (
+                <div
+                  className="absolute inset-0 opacity-10 pointer-events-none transition-opacity duration-500"
+                  style={{ backgroundColor: cls.color }}
+                />
+              )}
+
+              <div
+                style={{ color: cls.color }}
+                className="drop-shadow-lg transform group-hover:scale-110 transition-transform duration-300"
+              >
+                {getIcon(cls.id)}
+              </div>
+
+              <h3
+                className="text-xl font-bold uppercase tracking-wider"
+                style={{ color: cls.color }}
+              >
+                {cls.name}
+              </h3>
+
+              <p className="text-xs text-center text-zinc-400 leading-relaxed min-h-[60px] font-sans">
+                {cls.description}
+              </p>
+
+              {/* Stats Preview */}
+              <div className="w-full space-y-2 mt-4 text-[10px] font-mono text-zinc-500 border-t border-zinc-800 pt-4">
+                {cls.baseStats.strength && (
+                  <div className="flex justify-between">
+                    <span>FORCE</span>{" "}
+                    <span className="text-white">{cls.baseStats.strength}</span>
+                  </div>
+                )}
+                {cls.baseStats.agility && (
+                  <div className="flex justify-between">
+                    <span>AGILITÉ</span>{" "}
+                    <span className="text-white">{cls.baseStats.agility}</span>
+                  </div>
+                )}
+                {cls.baseStats.wisdom && (
+                  <div className="flex justify-between">
+                    <span>SAGESSE</span>{" "}
+                    <span className="text-white">{cls.baseStats.wisdom}</span>
+                  </div>
+                )}
+                {cls.baseStats.maxHp && (
+                  <div className="flex justify-between">
+                    <span>PV MAX</span>{" "}
+                    <span className="text-white">{cls.baseStats.maxHp}</span>
+                  </div>
+                )}
+              </div>
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  confirmClassSelection();
+                }}
+                className={`mt-4 px-6 py-2 rounded text-xs font-bold uppercase tracking-widest transition-colors ${
+                  selectedClassIdx === idx
+                    ? "bg-white text-black hover:bg-zinc-200"
+                    : "bg-zinc-800 text-zinc-500"
+                }`}
+              >
+                Sélectionner
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {/* FOOTER INSTRUCTIONS */}
+        <div className="absolute bottom-8 flex gap-8 text-zinc-500 text-[10px] uppercase tracking-wide opacity-80 z-10">
+          <div className="flex items-center gap-2">
+            <div className="flex gap-1">
+              <kbd className="bg-zinc-800 px-1 rounded border border-zinc-700">
+                ←
+              </kbd>
+              <kbd className="bg-zinc-800 px-1 rounded border border-zinc-700">
+                →
+              </kbd>
+            </div>
+            <span>Naviguer</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <kbd className="bg-zinc-800 px-2 py-0.5 rounded border border-zinc-700 text-white font-bold">
+              ENTER
+            </kbd>
+            <span>Valider</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <kbd className="bg-zinc-800 px-2 py-0.5 rounded border border-zinc-700">
+              ECHAP
+            </kbd>
+            <span>Retour</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // --- RENDER : SÉLECTION DE SLOT (VUE PAR DÉFAUT) ---
   return (
     <div className="absolute inset-0 z-50 bg-[#050508] flex flex-col items-center justify-center font-pixel text-white select-none">
       {/* FOND ANIMÉ */}
@@ -250,7 +502,7 @@ export default function TitleScreen() {
                       </button>
                     )}
                     <button
-                      onClick={() => startGame(slotId)}
+                      onClick={() => handleSlotSelect(slotId)}
                       className={`p-3 rounded-full transition-all ${
                         isSelected
                           ? "bg-red-600 text-white hover:bg-red-500 shadow-lg"
@@ -273,7 +525,7 @@ export default function TitleScreen() {
                     </span>
                   </div>
                   <button
-                    onClick={() => startGame(slotId)}
+                    onClick={() => handleSlotSelect(slotId)}
                     className={`p-2 rounded-full transition-all ${
                       isSelected
                         ? "bg-zinc-700 text-white"

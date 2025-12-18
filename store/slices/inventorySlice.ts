@@ -42,36 +42,122 @@ export const createInventorySlice: StateCreator<
       currentMerchantId,
       player,
     } = get();
-    let newIndex = menuSelectionIndex;
-    let maxIndex = 0;
-    let cols = 1;
 
+    // --- LOGIQUE INVENTAIRE ---
     if (gameState === "inventory") {
-      maxIndex = 29;
-      cols = 6;
-    } else if (gameState === "shop") {
+      const COLS = 6;
+      const TOTAL_INV = 30;
+
+      if (menuSelectionIndex >= 100) {
+        if (dir === "up" && menuSelectionIndex > 100)
+          set({ menuSelectionIndex: menuSelectionIndex - 1 });
+        if (dir === "down" && menuSelectionIndex < 102)
+          set({ menuSelectionIndex: menuSelectionIndex + 1 });
+
+        if (dir === "right") {
+          const targetRow =
+            menuSelectionIndex === 100 ? 0 : menuSelectionIndex === 101 ? 2 : 4;
+          set({ menuSelectionIndex: targetRow * COLS });
+        }
+      } else {
+        let newIndex = menuSelectionIndex;
+
+        if (dir === "up") {
+          if (newIndex >= COLS) newIndex -= COLS;
+        } else if (dir === "down") {
+          if (newIndex + COLS < TOTAL_INV) newIndex += COLS;
+        } else if (dir === "left") {
+          if (newIndex % COLS === 0) {
+            const row = Math.floor(newIndex / COLS);
+            const target = row < 2 ? 100 : row < 3 ? 101 : 102;
+            set({ menuSelectionIndex: target });
+            return;
+          } else {
+            newIndex -= 1;
+          }
+        } else if (dir === "right") {
+          if (newIndex % COLS < COLS - 1 && newIndex + 1 < TOTAL_INV)
+            newIndex += 1;
+        }
+
+        set({ menuSelectionIndex: newIndex });
+      }
+    }
+    // --- LOGIQUE GRIMOIRE ---
+    else if (gameState === "spellbook") {
+      const maxList = Math.max(0, player.spells.length - 1);
+
+      if (menuSelectionIndex >= 100) {
+        if (dir === "left") set({ menuSelectionIndex: 0 });
+        if (dir === "up" && menuSelectionIndex > 100)
+          set({ menuSelectionIndex: menuSelectionIndex - 1 });
+        if (dir === "down" && menuSelectionIndex < 102)
+          set({ menuSelectionIndex: menuSelectionIndex + 1 });
+      } else {
+        if (dir === "right") set({ menuSelectionIndex: 100 });
+        else if (dir === "up")
+          set({ menuSelectionIndex: Math.max(0, menuSelectionIndex - 1) });
+        else if (dir === "down")
+          set({
+            menuSelectionIndex: Math.min(maxList, menuSelectionIndex + 1),
+          });
+      }
+    }
+    // --- LOGIQUE QUÊTES (SÉCURISÉE) ---
+    else if (gameState === "quests") {
+      // PROTECTION ANTI-CRASH : Utilisation de [] si undefined
+      const quests = player.quests || [];
+      const maxQuests = Math.max(0, quests.length - 1);
+
+      if (dir === "up") {
+        set({ menuSelectionIndex: Math.max(0, menuSelectionIndex - 1) });
+      }
+      if (dir === "down") {
+        set({
+          menuSelectionIndex: Math.min(maxQuests, menuSelectionIndex + 1),
+        });
+      }
+    }
+    // --- LOGIQUE SHOP ---
+    else if (gameState === "shop") {
       const merchant = enemies.find((e) => e.id === currentMerchantId) as
         | MerchantEntity
         | undefined;
-      maxIndex = (merchant?.shopInventory?.length || 1) - 1;
-      cols = 2;
-    } else if (gameState === "spellbook") {
-      maxIndex = (player.spells.length || 1) - 1;
-      cols = 1;
-    } else if (gameState === "levelup") {
-      maxIndex = 4 + (player.masteries?.length || 0) - 1;
-      cols = 1;
+      if (!merchant || !merchant.shopInventory) return;
+
+      const totalItems = merchant.shopInventory.length;
+      if (totalItems === 0) return;
+
+      const COLS = 3;
+
+      let newIndex = menuSelectionIndex;
+
+      if (dir === "up") {
+        if (newIndex >= COLS) newIndex -= COLS;
+      } else if (dir === "down") {
+        if (newIndex + COLS < totalItems) newIndex += COLS;
+      } else if (dir === "left") {
+        if (newIndex % COLS !== 0) newIndex -= 1;
+      } else if (dir === "right") {
+        if (newIndex % COLS < COLS - 1 && newIndex + 1 < totalItems)
+          newIndex += 1;
+      }
+
+      set({ menuSelectionIndex: newIndex });
     }
+    // --- LOGIQUE LEVEL UP ---
+    else if (gameState === "levelup") {
+      const STATS_COUNT = 5;
+      const masteryCount = player.masteries?.length || 0;
+      const maxIndex = STATS_COUNT + Math.max(0, masteryCount - 1);
 
-    if (dir === "right") newIndex++;
-    else if (dir === "left") newIndex--;
-    else if (dir === "up") newIndex -= cols;
-    else if (dir === "down") newIndex += cols;
-
-    if (newIndex < 0) newIndex = 0;
-    if (newIndex > maxIndex) newIndex = maxIndex;
-
-    set({ menuSelectionIndex: newIndex });
+      if (dir === "up" && menuSelectionIndex > 0) {
+        set({ menuSelectionIndex: menuSelectionIndex - 1 });
+      }
+      if (dir === "down" && menuSelectionIndex < maxIndex) {
+        set({ menuSelectionIndex: menuSelectionIndex + 1 });
+      }
+    }
   },
 
   selectMenuItem: () => {
@@ -86,23 +172,36 @@ export const createInventorySlice: StateCreator<
       currentMerchantId,
       player,
       equipSpell,
+      unequipItem,
       incrementAttribute,
       unlockMastery,
     } = get();
 
     if (gameState === "inventory") {
-      const item = inventory[menuSelectionIndex];
-      if (!item) return;
-
-      if (
-        item.type === "potion" ||
-        item.type === "consumable" ||
-        (item as any).type === "scroll" ||
-        item.type === "spellbook"
-      ) {
-        useItem(item.id);
+      if (menuSelectionIndex >= 100) {
+        const slot =
+          menuSelectionIndex === 100
+            ? "weapon"
+            : menuSelectionIndex === 101
+            ? "armor"
+            : "accessory";
+        if (player.equipment[slot]) {
+          unequipItem(slot);
+        }
       } else {
-        equipItem(item);
+        const item = inventory[menuSelectionIndex];
+        if (!item) return;
+
+        if (
+          item.type === "potion" ||
+          item.type === "consumable" ||
+          (item as any).type === "scroll" ||
+          item.type === "spellbook"
+        ) {
+          useItem(item.id);
+        } else {
+          equipItem(item);
+        }
       }
     } else if (gameState === "shop") {
       const merchant = enemies.find((e) => e.id === currentMerchantId) as
@@ -113,11 +212,13 @@ export const createInventorySlice: StateCreator<
         if (item) buyItem(item);
       }
     } else if (gameState === "spellbook") {
-      const spell = player.spells[menuSelectionIndex];
-      if (spell) {
-        const emptySlot = player.equippedSpells.indexOf("");
-        const slotToUse = emptySlot === -1 ? 0 : emptySlot;
-        equipSpell(spell.id, slotToUse);
+      if (menuSelectionIndex < 100) {
+        const spell = player.spells[menuSelectionIndex];
+        if (spell) {
+          const emptySlot = player.equippedSpells.indexOf("");
+          const slotToUse = emptySlot === -1 ? 0 : emptySlot;
+          equipSpell(spell.id, slotToUse);
+        }
       }
     } else if (gameState === "levelup") {
       const STATS_KEYS = ["strength", "endurance", "wisdom", "agility", "luck"];
@@ -266,7 +367,6 @@ export const createInventorySlice: StateCreator<
     }
 
     // LOGIQUE POTION / CONSOMMABLE
-    // On force une valeur si c'est une potion et qu'elle n'a pas de stats définies
     let heal = 0;
     if (item.stats && item.stats.hp) heal = item.stats.hp;
     else if (item.type === "potion" || item.type === "consumable") heal = 50;
@@ -290,7 +390,6 @@ export const createInventorySlice: StateCreator<
         "#fff"
       );
     } else {
-      // Fallback si l'objet n'a pas d'effet connu
       addLog("Impossible d'utiliser cet objet.");
     }
   },
@@ -324,5 +423,10 @@ export const createInventorySlice: StateCreator<
     }
   },
 
-  closeShop: () => set({ gameState: "playing", currentMerchantId: undefined }),
+  closeShop: () =>
+    set({
+      gameState: "playing",
+      currentMerchantId: undefined,
+      menuSelectionIndex: 0,
+    }),
 });

@@ -1,21 +1,23 @@
-import { Plus } from "lucide-react";
+import { Plus, LucideIcon } from "lucide-react";
 
 interface StatRowProps {
   label: string;
   value: number;
-  canUpgrade: boolean;
-  onUpgrade: () => void;
+  canIncrement: boolean; // Renommé pour correspondre à l'usage
+  onIncrement: () => void; // Renommé pour correspondre à l'usage
   description?: string;
-  isSelected?: boolean; // Ajout
+  isSelected?: boolean;
+  icon: LucideIcon; // Ajout de la prop manquante
 }
 
 export default function StatRow({
   label,
   value,
-  canUpgrade,
-  onUpgrade,
+  canIncrement,
+  onIncrement,
   description,
   isSelected,
+  icon: Icon, // On renomme pour l'utiliser comme composant JSX
 }: StatRowProps) {
   return (
     <div
@@ -32,26 +34,42 @@ export default function StatRow({
         <div className="absolute left-0 top-0 bottom-0 w-1 bg-yellow-500 rounded-l" />
       )}
 
-      <div className="flex flex-col pl-2">
-        <span
-          className={`font-bold uppercase text-xs tracking-wider ${
-            isSelected ? "text-yellow-200" : "text-zinc-300"
+      <div className="flex items-center gap-3">
+        {/* Affichage de l'icône */}
+        <div
+          className={`p-2 rounded-md border ${
+            isSelected
+              ? "bg-yellow-900/20 border-yellow-700/50"
+              : "bg-zinc-950 border-zinc-800"
           }`}
         >
-          {label}
-        </span>
-        <span className="text-zinc-500 text-[10px]">{description}</span>
+          <Icon
+            size={18}
+            className={isSelected ? "text-yellow-500" : "text-zinc-500"}
+          />
+        </div>
+
+        <div className="flex flex-col">
+          <span
+            className={`font-bold uppercase text-xs tracking-wider ${
+              isSelected ? "text-yellow-200" : "text-zinc-300"
+            }`}
+          >
+            {label}
+          </span>
+          <span className="text-zinc-500 text-[10px]">{description}</span>
+        </div>
       </div>
 
       <div className="flex items-center gap-4">
         <span className="text-xl font-mono text-white">{value}</span>
         <button
-          onClick={onUpgrade}
-          disabled={!canUpgrade}
+          onClick={onIncrement}
+          disabled={!canIncrement}
           className={`
             w-8 h-8 flex items-center justify-center rounded border transition-all
             ${
-              canUpgrade
+              canIncrement
                 ? isSelected
                   ? "bg-green-600 text-white border-green-400"
                   : "border-green-600 bg-green-900/20 text-green-400"

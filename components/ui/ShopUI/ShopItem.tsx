@@ -1,5 +1,7 @@
-import { Coins, Shield, Sparkles, Zap, Scroll, Skull } from "lucide-react";
+import { Coins } from "lucide-react";
 import { Item } from "@/types/game";
+import SpriteIcon from "../SpriteIcon";
+import useGameStore from "@/store/gameStore";
 
 interface ShopItemProps {
   item: Item;
@@ -14,83 +16,118 @@ export default function ShopItem({
   isSelected,
   onBuy,
 }: ShopItemProps) {
-  const getIcon = () => {
-    switch (item.type) {
-      case "weapon":
-        return <Skull size={20} className="text-red-400" />;
-      case "armor":
-        return <Shield size={20} className="text-blue-400" />;
-      case "potion":
-        return <Sparkles size={20} className="text-pink-400" />;
-      case "scroll":
-        return <Scroll size={20} className="text-purple-400" />;
-      default:
-        return <Zap size={20} className="text-yellow-400" />;
-    }
+  const inputMethod = useGameStore((s) => s.inputMethod);
+
+  // Fonction pour nettoyer l'affichage des stats
+  const getCleanStats = () => {
+    if (!item.stats) return [];
+
+    // Mapping des noms pour être plus court
+    const shortNames: Record<string, string> = {
+      attack: "ATK",
+      defense: "DEF",
+      hp: "PV",
+      maxHp: "PV Max",
+      mana: "PM",
+      maxMana: "PM Max",
+      speed: "VIT",
+      critChance: "CRIT",
+      strength: "FOR",
+      agility: "AGI",
+      wisdom: "SAG",
+      endurance: "END",
+    };
+
+    return Object.entries(item.stats)
+      .filter(([_, value]) => value > 0) // On ne montre que ce qui est positif
+      .slice(0, 3) // Max 3 stats pour pas surcharger
+      .map(([key, value]) => ({
+        label: shortNames[key] || key.substring(0, 3).toUpperCase(),
+        value:
+          typeof value === "number" && value < 1
+            ? `${Math.round(value * 100)}%`
+            : `+${value}`,
+      }));
   };
+
+  const visibleStats = getCleanStats();
 
   return (
     <div
       onClick={onBuy}
       className={`
-        relative group flex flex-col gap-3 p-4 rounded-xl border transition-all duration-200 cursor-pointer overflow-hidden
+        relative group flex flex-col p-3 rounded-xl border transition-all duration-200 cursor-pointer overflow-hidden
+        h-[240px] w-full
         ${
           isSelected
-            ? "bg-yellow-950/20 border-yellow-500/80 shadow-[0_0_30px_rgba(234,179,8,0.2)] -translate-y-1"
-            : "bg-black/40 border-zinc-800 hover:border-zinc-600"
+            ? "bg-yellow-950/30 border-yellow-500/80 shadow-[0_0_20px_rgba(234,179,8,0.15)] scale-[1.02]"
+            : "bg-black/60 border-zinc-800 hover:border-zinc-600 hover:bg-zinc-900/50"
         }
-        ${!canAfford ? "opacity-50 grayscale-[0.8]" : "opacity-100"}
+        ${!canAfford ? "opacity-60 grayscale-[0.5]" : "opacity-100"}
       `}
     >
-      {/* Selection Glow Effect */}
+      {/* Glow si sélectionné */}
       {isSelected && (
-        <div className="absolute inset-0 bg-gradient-to-tr from-yellow-500/10 to-transparent pointer-events-none animate-pulse" />
+        <div className="absolute inset-0 bg-gradient-to-b from-yellow-500/5 to-transparent pointer-events-none" />
       )}
 
-      {/* Header: Icon + Name */}
-      <div className="flex justify-between items-start relative z-10">
-        <div className="flex gap-3 items-center">
-          <div
-            className={`p-2 rounded-lg bg-black border shadow-inner ${
-              isSelected ? "border-yellow-700/50" : "border-zinc-800"
-            }`}
-          >
-            {getIcon()}
-          </div>
-          <div>
-            <h4
-              className={`font-bold text-sm leading-tight ${
-                isSelected ? "text-yellow-200" : "text-zinc-300"
-              }`}
-            >
-              {item.name}
-            </h4>
-            <span className="text-[10px] text-zinc-500 uppercase tracking-wider font-mono">
-              {item.type}
-            </span>
-          </div>
+      {/* En-tête : Image et Type */}
+      <div className="flex flex-col items-center gap-2 mb-2 relative z-10 flex-shrink-0">
+        <div
+          className={`p-3 rounded-lg bg-zinc-950 border shadow-inner ${
+            isSelected ? "border-yellow-700/50" : "border-zinc-800"
+          }`}
+        >
+          <SpriteIcon
+            spriteKey={item.spriteKey}
+            size={42}
+            className="drop-shadow-lg"
+          />
         </div>
       </div>
 
-      {/* Stats */}
-      {item.stats && (
-        <div className="space-y-1 my-1 relative z-10">
-          {Object.entries(item.stats).map(([key, value]) => (
-            <div key={key} className="flex justify-between text-[10px]">
-              <span className="text-zinc-500 uppercase">{key}</span>
-              <span className="text-zinc-300 font-mono">+{String(value)}</span>
+      {/* Corps : Nom et Stats */}
+      <div className="flex-1 flex flex-col items-center text-center gap-1 overflow-hidden relative z-10">
+        <h4
+          className={`font-bold text-sm leading-tight line-clamp-1 ${
+            isSelected ? "text-yellow-200" : "text-zinc-200"
+          }`}
+        >
+          {item.name}
+        </h4>
+        <span className="text-[9px] text-zinc-500 uppercase tracking-widest font-mono mb-1">
+          {item.type}
+        </span>
+
+        {/* Liste Stats Épurée */}
+        <div className="w-full bg-black/30 rounded p-1.5 space-y-1">
+          {visibleStats.length > 0 ? (
+            visibleStats.map((stat, idx) => (
+              <div
+                key={idx}
+                className="flex justify-between items-center text-[10px] px-1"
+              >
+                <span className="text-zinc-500 font-bold">{stat.label}</span>
+                <span className="text-zinc-300 font-mono">{stat.value}</span>
+              </div>
+            ))
+          ) : (
+            <div className="text-[10px] text-zinc-600 italic py-1">
+              Aucune stat
             </div>
-          ))}
+          )}
         </div>
-      )}
 
-      {/* Description */}
-      <p className="text-[10px] text-zinc-500 leading-snug line-clamp-2 h-8 relative z-10">
-        {item.description}
-      </p>
+        {/* Description courte (optionnelle si place) */}
+        {item.description && (
+          <p className="text-[9px] text-zinc-500 mt-1 line-clamp-2 px-1 leading-tight">
+            {item.description}
+          </p>
+        )}
+      </div>
 
-      {/* Footer: Price */}
-      <div className="mt-auto pt-3 border-t border-dashed border-zinc-800 flex justify-between items-center relative z-10">
+      {/* Footer : Prix et Action */}
+      <div className="mt-auto pt-2 border-t border-dashed border-zinc-800 flex justify-between items-center relative z-10 flex-shrink-0">
         <div
           className={`flex items-center gap-1.5 font-mono font-bold text-sm ${
             canAfford
@@ -103,8 +140,9 @@ export default function ShopItem({
           {item.value} <Coins size={12} />
         </div>
 
-        {isSelected && canAfford && (
-          <span className="text-[9px] bg-yellow-600 text-black font-bold px-1.5 py-0.5 rounded animate-bounce">
+        {/* CORRECTION : On cache ce bouton si on est sur Manette car le Footer du menu gère déjà l'affichage */}
+        {isSelected && canAfford && inputMethod !== "gamepad" && (
+          <span className="text-[9px] bg-yellow-600 text-black font-bold px-2 py-1 rounded animate-pulse">
             ACHETER
           </span>
         )}
