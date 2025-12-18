@@ -3,17 +3,29 @@ import useGameStore from "@/store/gameStore";
 
 export const useGamepad = (triggerShake: () => void) => {
   const movePlayer = useGameStore((state) => state.movePlayer);
-  // On utilise performAttack au lieu de playerAttack pour distinguer les types
   const performAttack = useGameStore((state) => state.performAttack);
   const setInputMethod = useGameStore((state) => state.setInputMethod);
   const interact = useGameStore((state) => state.interact);
   const advanceDialogue = useGameStore((state) => state.advanceDialogue);
 
+  // Actions Menus
+  const navigateMenu = useGameStore((state) => state.navigateMenu);
+  const equipItem = useGameStore((state) => state.equipItem);
+  const useItem = useGameStore((state) => state.useItem);
+  const buyItem = useGameStore((state) => state.buyItem);
+
+  // Sélecteurs d'état
+  const inventory = useGameStore((state) => state.inventory);
+  const enemies = useGameStore((state) => state.enemies);
+  const currentMerchantId = useGameStore((state) => state.currentMerchantId);
+  const menuSelectionIndex = useGameStore((state) => state.menuSelectionIndex);
+  const player = useGameStore((state) => state.player);
+  const equipSpell = useGameStore((state) => state.equipSpell);
+
   const gameState = useGameStore((state) => state.gameState);
   const setGameState = useGameStore((state) => state.setGameState);
   const closeUi = useGameStore((state) => state.closeUi);
 
-  // État des boutons pour éviter le "spam" (appui unique)
   const buttonStates = useRef<Record<number, boolean>>({});
 
   const pollGamepad = (
@@ -25,7 +37,7 @@ export const useGamepad = (triggerShake: () => void) => {
 
     if (!gp) return;
 
-    // Détection d'activité manette
+    // 1. Détection Active
     if (
       Math.abs(gp.axes[0]) > 0.1 ||
       Math.abs(gp.axes[1]) > 0.1 ||
@@ -34,9 +46,8 @@ export const useGamepad = (triggerShake: () => void) => {
       setInputMethod("gamepad");
     }
 
-    // --- GESTION DES MENUS GLOBAUX ---
-
-    // START (Btn 9) -> PAUSE
+    // 2. Gestion Globale (Pause, Retour)
+    // Start (Button 9) -> Pause
     if (gp.buttons[9]?.pressed) {
       if (!buttonStates.current[9]) {
         if (gameState === "playing") setGameState("pause_menu");
@@ -47,7 +58,7 @@ export const useGamepad = (triggerShake: () => void) => {
       buttonStates.current[9] = false;
     }
 
-    // SELECT (Btn 8) -> MANAGEMENT (Inventaire/Grimoire)
+    // Select/Back (Button 8) -> Menu Gestion
     if (gp.buttons[8]?.pressed) {
       if (!buttonStates.current[8]) {
         if (gameState === "playing") setGameState("management_menu");
@@ -65,7 +76,7 @@ export const useGamepad = (triggerShake: () => void) => {
       buttonStates.current[8] = false;
     }
 
-    // B (Btn 1) -> RETOUR / FERMER
+    // B (Button 1) -> Retour / Fermer
     if (gp.buttons[1]?.pressed) {
       if (!buttonStates.current[1]) {
         if (
@@ -84,33 +95,138 @@ export const useGamepad = (triggerShake: () => void) => {
       buttonStates.current[1] = false;
     }
 
+    // 3. LOGIQUE SPÉCIFIQUE PAR ÉTAT
+
+    // --- A. GAME OVER (CORRIGÉ : "gameover" sans underscore) ---
+    if (gameState === "gameover") {
+      if (gp.buttons[0]?.pressed || gp.buttons[9]?.pressed) {
+        if (!buttonStates.current[0]) {
+          // Rechargement complet pour nettoyer l'état proprement
+          window.location.reload();
+          buttonStates.current[0] = true;
+        }
+      } else {
+        buttonStates.current[0] = false;
+      }
+      return;
+    }
+
+    // --- B. ÉCRAN TITRE (START) ---
+    if (gameState === "start") {
+      if (gp.buttons[0]?.pressed || gp.buttons[9]?.pressed) {
+        if (!buttonStates.current[0]) {
+          // Lance le jeu
+          setGameState("playing");
+          buttonStates.current[0] = true;
+        }
+      } else {
+        buttonStates.current[0] = false;
+      }
+      return;
+    }
+
+    // --- C. MENUS DE NAVIGATION (Inventaire, Grimoire, Shop, Level Up) ---
+    if (
+      gameState === "inventory" ||
+      gameState === "spellbook" ||
+      gameState === "shop" ||
+      gameState === "levelup"
+    ) {
+      const MENU_COOLDOWN = 120;
+      const AXIS_THRESHOLD = 0.5;
+
+      // Navigation
+      if (now - lastMoveTime.current > MENU_COOLDOWN) {
+        const axisX = gp.axes[0];
+        const axisY = gp.axes[1];
+
+        if (axisY < -AXIS_THRESHOLD || gp.buttons[12]?.pressed) {
+          navigateMenu("up");
+          lastMoveTime.current = now;
+        } else if (axisY > AXIS_THRESHOLD || gp.buttons[13]?.pressed) {
+          navigateMenu("down");
+          lastMoveTime.current = now;
+        } else if (axisX < -AXIS_THRESHOLD || gp.buttons[14]?.pressed) {
+          navigateMenu("left");
+          lastMoveTime.current = now;
+        } else if (axisX > AXIS_THRESHOLD || gp.buttons[15]?.pressed) {
+          navigateMenu("right");
+          lastMoveTime.current = now;
+        }
+      }
+
+      // Action (Valider / Acheter / Sélectionner)
+      if (gp.buttons[0]?.pressed) {
+        if (!buttonStates.current[0]) {
+          if (gameState === "inventory") {
+            const item = inventory[menuSelectionIndex];
+            if (item) {
+              if (item.type === "potion" || (item as any).type === "scroll")
+                useItem(item.id);
+              else equipItem(item);
+            }
+          } else if (gameState === "spellbook") {
+            const spell = player.spells[menuSelectionIndex];
+            if (spell) equipSpell(spell.id, 0);
+          } else if (gameState === "shop") {
+            const merchant = enemies.find((e) => e.id === currentMerchantId);
+            if (merchant && merchant.shopInventory) {
+              const itemToBuy = merchant.shopInventory[menuSelectionIndex];
+              if (itemToBuy) buyItem(itemToBuy);
+            }
+          } else if (gameState === "levelup") {
+            // Pour l'instant, on ferme juste l'UI car la logique de sélection
+            // nécessite des fonctions supplémentaires dans le store.
+            closeUi();
+          }
+          buttonStates.current[0] = true;
+        }
+      } else {
+        buttonStates.current[0] = false;
+      }
+
+      // Raccourcis spécifiques Spellbook
+      if (gameState === "spellbook") {
+        const spell = player.spells[menuSelectionIndex];
+        if (spell) {
+          if (gp.buttons[4]?.pressed && !buttonStates.current[4]) {
+            equipSpell(spell.id, 0);
+            buttonStates.current[4] = true;
+          } else if (!gp.buttons[4]?.pressed) buttonStates.current[4] = false;
+
+          if (gp.buttons[5]?.pressed && !buttonStates.current[5]) {
+            equipSpell(spell.id, 1);
+            buttonStates.current[5] = true;
+          } else if (!gp.buttons[5]?.pressed) buttonStates.current[5] = false;
+        }
+      }
+      return;
+    }
+
+    // --- D. JEU (PLAYING / DIALOGUE) ---
     if (gameState !== "playing" && gameState !== "dialogue") return;
 
-    // --- GAMEPLAY JOUEUR ---
-
-    // 1. Mouvement
     const axisX = gp.axes[0];
     const axisY = gp.axes[1];
-    const MOVEMENT_COOLDOWN = 120;
+    const MOVEMENT_COOLDOWN = 100;
+    const MOVE_THRESHOLD = 0.3;
 
     if (now - lastMoveTime.current > MOVEMENT_COOLDOWN) {
-      if (axisY < -0.5 || gp.buttons[12]?.pressed) {
+      if (axisY < -MOVE_THRESHOLD || gp.buttons[12]?.pressed) {
         movePlayer("up");
         lastMoveTime.current = now;
-      } else if (axisY > 0.5 || gp.buttons[13]?.pressed) {
+      } else if (axisY > MOVE_THRESHOLD || gp.buttons[13]?.pressed) {
         movePlayer("down");
         lastMoveTime.current = now;
-      } else if (axisX < -0.5 || gp.buttons[14]?.pressed) {
+      } else if (axisX < -MOVE_THRESHOLD || gp.buttons[14]?.pressed) {
         movePlayer("left");
         lastMoveTime.current = now;
-      } else if (axisX > 0.5 || gp.buttons[15]?.pressed) {
+      } else if (axisX > MOVE_THRESHOLD || gp.buttons[15]?.pressed) {
         movePlayer("right");
         lastMoveTime.current = now;
       }
     }
 
-    // 2. Actions
-    // A (Btn 0) -> Interact / Dialogue
     if (gp.buttons[0]?.pressed) {
       if (!buttonStates.current[0]) {
         if (gameState === "dialogue") advanceDialogue();
@@ -121,7 +237,6 @@ export const useGamepad = (triggerShake: () => void) => {
       buttonStates.current[0] = false;
     }
 
-    // X (Btn 2) -> Attaque Rapide (LIGHT)
     if (gp.buttons[2]?.pressed) {
       if (!buttonStates.current[2]) {
         performAttack("light");
@@ -131,7 +246,6 @@ export const useGamepad = (triggerShake: () => void) => {
       buttonStates.current[2] = false;
     }
 
-    // Y (Btn 3) ou RT (Btn 7) -> Attaque Lourde (HEAVY)
     if (gp.buttons[3]?.pressed || gp.buttons[7]?.pressed) {
       if (!buttonStates.current[3]) {
         performAttack("heavy");

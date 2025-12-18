@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import useGameStore from "@/store/gameStore";
 import { Item } from "@/types/game";
 import InventorySlot from "./InventorySlot";
 import EquipmentPanel from "./EquipmentPanel";
 import ItemTooltip from "./ItemTooltip";
-import { X, Shield, Sword, Backpack } from "lucide-react";
+import { X, Shield, Backpack } from "lucide-react";
 
 export default function InventoryUI() {
   const {
@@ -20,8 +20,24 @@ export default function InventoryUI() {
 
   const [hoveredItem, setHoveredItem] = useState<Item | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // --- AUTO-SCROLL LOGIC ---
+  useEffect(() => {
+    if (inputMethod === "gamepad" && menuSelectionIndex < 100) {
+      const el = document.getElementById(
+        `inventory-slot-${menuSelectionIndex}`
+      );
+      if (el) {
+        el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      }
+    }
+  }, [menuSelectionIndex, inputMethod]);
 
   const handleHover = (item: Item, e: React.MouseEvent) => {
+    // On ignore le survol souris si on est en mode manette pour éviter les conflits
+    if (inputMethod === "gamepad") return;
+
     setHoveredItem(item);
     setMousePos({ x: e.clientX, y: e.clientY });
   };
@@ -35,14 +51,25 @@ export default function InventoryUI() {
     }
   };
 
-  const selectedItem = inventory[menuSelectionIndex];
+  // --- LOGIQUE DE SÉLECTION INTELLIGENTE ---
+  let selectedItem: Item | null = null;
+  if (menuSelectionIndex < 100) {
+    selectedItem = inventory[menuSelectionIndex];
+  } else {
+    // Si curseur sur équipement
+    if (menuSelectionIndex === 100) selectedItem = player.equipment.weapon;
+    else if (menuSelectionIndex === 101) selectedItem = player.equipment.armor;
+    else if (menuSelectionIndex === 102)
+      selectedItem = player.equipment.accessory;
+  }
+
   const activeItem =
     inputMethod === "mouse" ? hoveredItem : selectedItem || null;
 
   return (
     <div className="absolute inset-0 z-40 flex items-center justify-center p-4 animate-in fade-in zoom-in-95 duration-200">
       <div className="relative flex w-full max-w-[900px] h-[600px] bg-[#0a0a0a] border-2 border-zinc-800 shadow-[0_0_50px_rgba(0,0,0,0.8)] rounded-xl overflow-hidden flex-col md:flex-row font-pixel">
-        {/* --- LEFT PANEL: EQUIPMENT --- */}
+        {/* --- PANNEAU GAUCHE : ÉQUIPEMENT --- */}
         <div className="w-full md:w-[320px] bg-zinc-950/80 border-r-2 border-zinc-800 p-6 flex flex-col relative">
           <div className="absolute inset-0 bg-[url('/noise.png')] opacity-5 pointer-events-none" />
 
@@ -63,6 +90,7 @@ export default function InventoryUI() {
           <div className="flex-1 flex items-center justify-center">
             <EquipmentPanel
               equipment={player.equipment}
+              selectedIndex={menuSelectionIndex}
               onUnequip={(slot) => unequipItem(slot)}
               onHover={handleHover}
               onLeave={() => setHoveredItem(null)}
@@ -70,7 +98,7 @@ export default function InventoryUI() {
           </div>
         </div>
 
-        {/* --- RIGHT PANEL: INVENTORY --- */}
+        {/* --- PANNEAU DROIT : INVENTAIRE --- */}
         <div className="flex-1 bg-black/60 p-6 md:p-8 flex flex-col relative">
           <div className="absolute top-4 right-4 z-20">
             <button
@@ -91,31 +119,35 @@ export default function InventoryUI() {
             </h2>
           </div>
 
-          <div className="flex-1 overflow-y-auto custom-scroll pr-2">
+          <div
+            ref={containerRef}
+            className="flex-1 overflow-y-auto custom-scroll pr-2"
+          >
             <div className="grid grid-cols-5 sm:grid-cols-6 gap-3 content-start pb-4">
               {Array.from({ length: 30 }).map((_, i) => {
                 const item = inventory[i];
                 const isSelected = i === menuSelectionIndex;
                 return (
-                  <InventorySlot
-                    key={i}
-                    index={i}
-                    item={item}
-                    isSelected={isSelected}
-                    onClick={() => item && handleSlotClick(item)}
-                    onRightClick={(e) => {
-                      e.preventDefault();
-                      if (item) handleSlotClick(item);
-                    }}
-                    onHover={(e) => item && handleHover(item, e)}
-                    onLeave={() => setHoveredItem(null)}
-                  />
+                  <div key={i} id={`inventory-slot-${i}`}>
+                    <InventorySlot
+                      index={i}
+                      item={item}
+                      isSelected={isSelected}
+                      onClick={() => item && handleSlotClick(item)}
+                      onRightClick={(e) => {
+                        e.preventDefault();
+                        if (item) handleSlotClick(item);
+                      }}
+                      onHover={(e) => item && handleHover(item, e)}
+                      onLeave={() => setHoveredItem(null)}
+                    />
+                  </div>
                 );
               })}
             </div>
           </div>
 
-          {/* --- FOOTER CONTROLS --- */}
+          {/* --- PIED DE PAGE : COMMANDES --- */}
           <div className="mt-4 pt-4 border-t border-zinc-800 text-center text-[10px] text-zinc-500 flex justify-between uppercase tracking-wider font-bold">
             <div className="flex gap-4">
               <span className="flex items-center gap-1.5">
@@ -126,12 +158,11 @@ export default function InventoryUI() {
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="bg-zinc-800 text-zinc-300 px-1.5 py-0.5 rounded border border-zinc-700">
-                  {inputMethod === "gamepad" ? "DIR" : "FLÈCHES"}
+                  {inputMethod === "gamepad" ? "D-PAD" : "FLÈCHES"}
                 </span>
-                <span>Sélection</span>
+                <span>Naviguer</span>
               </span>
             </div>
-
             <span className="flex items-center gap-1.5">
               <span className="bg-zinc-800 text-zinc-300 px-1.5 py-0.5 rounded border border-zinc-700">
                 {inputMethod === "gamepad" ? "B" : "ECHAP"}
@@ -141,9 +172,9 @@ export default function InventoryUI() {
           </div>
         </div>
 
-        {/* --- INFO PANEL (ABSOLUTE) --- */}
+        {/* --- PANNEAU D'INFO FLOTTANT --- */}
         {activeItem && inputMethod !== "mouse" && (
-          <div className="absolute bottom-20 right-8 bg-zinc-950/95 border border-zinc-700 p-4 rounded-lg w-64 shadow-[0_10px_30px_rgba(0,0,0,0.8)] pointer-events-none z-30 animate-in slide-in-from-right-5 fade-in duration-200">
+          <div className="absolute bottom-20 right-8 bg-zinc-950/95 border border-zinc-700 p-4 rounded-lg w-64 shadow-[0_10px_30px_rgba(0,0,0,0.8)] pointer-events-none z-30 animate-in slide-in-from-right-5 fade-in duration-150">
             <h3 className="font-bold text-amber-500 text-sm mb-0.5">
               {activeItem.name}
             </h3>
@@ -167,8 +198,7 @@ export default function InventoryUI() {
             )}
 
             <div className="mt-3 pt-2 border-t border-zinc-800 text-[9px] text-zinc-500 italic">
-              {activeItem.description ||
-                "Un objet mystérieux trouvé dans les profondeurs."}
+              {activeItem.description || "Un objet mystérieux."}
             </div>
           </div>
         )}

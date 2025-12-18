@@ -31,7 +31,8 @@ export default function TitleScreen() {
 
   // Chargement des sauvegardes
   useEffect(() => {
-    const meta = localStorage.getItem("void_chronicles_meta");
+    // CORRECTION : Clé de sauvegarde mise à jour
+    const meta = localStorage.getItem("zero_cycle_meta");
     if (meta) {
       setSlots(JSON.parse(meta));
     }
@@ -52,11 +53,13 @@ export default function TitleScreen() {
     (slotId: number) => {
       if (!slots[slotId]) return;
       if (confirm("Effacer ce personnage définitivement ?")) {
-        localStorage.removeItem(`void_chronicles_save_slot_${slotId}`);
+        // CORRECTION : Clé de sauvegarde slot
+        localStorage.removeItem(`zero_cycle_save_slot_${slotId}`);
         const newSlots = { ...slots };
         delete newSlots[slotId];
         setSlots(newSlots);
-        localStorage.setItem("void_chronicles_meta", JSON.stringify(newSlots));
+        // CORRECTION : Clé de sauvegarde meta
+        localStorage.setItem("zero_cycle_meta", JSON.stringify(newSlots));
       }
     },
     [slots]
@@ -175,10 +178,10 @@ export default function TitleScreen() {
         }`}
       >
         <h1 className="text-5xl md:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-zinc-500 drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]">
-          VOID
+          ZERO
         </h1>
         <h2 className="text-xl md:text-2xl font-bold tracking-[0.8em] text-red-500 pl-4">
-          CHRONICLES
+          CYCLE
         </h2>
       </div>
 
@@ -237,6 +240,7 @@ export default function TitleScreen() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
+                          e.preventDefault();
                           deleteSave(slotId);
                         }}
                         className="p-2 text-zinc-600 hover:text-red-500 transition-colors mr-2"

@@ -22,10 +22,10 @@ export default function InventorySlot({
   return (
     <div
       className={`
-        relative w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center cursor-pointer transition-all duration-200 group
+        relative w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center cursor-pointer transition-all duration-150 group rounded-md
         ${
           isSelected
-            ? "bg-zinc-800 border-2 border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.4)] z-10 scale-110"
+            ? "bg-zinc-800 border-2 border-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.5)] z-20"
             : "bg-black/60 border border-zinc-800 hover:border-zinc-500 hover:bg-zinc-800"
         }
         ${!item ? "shadow-inner" : ""}
@@ -37,7 +37,7 @@ export default function InventorySlot({
     >
       {/* Background pattern for empty slots */}
       {!item && (
-        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-zinc-500 to-transparent pointer-events-none" />
+        <div className="absolute inset-0 opacity-5 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-zinc-500 to-transparent pointer-events-none" />
       )}
 
       {/* Rarity Glow (Simulated) */}
@@ -59,16 +59,16 @@ export default function InventorySlot({
           )}
         </div>
       ) : (
-        <div className="w-2 h-2 bg-zinc-800/50 rounded-full shadow-inner" />
+        <div className="w-1.5 h-1.5 bg-zinc-800/50 rounded-full shadow-inner" />
       )}
 
-      {/* Selection Corners */}
+      {/* Selection Corners (Style Magnifique) */}
       {isSelected && (
         <>
-          <div className="absolute top-0 left-0 w-1 h-1 bg-amber-500" />
-          <div className="absolute top-0 right-0 w-1 h-1 bg-amber-500" />
-          <div className="absolute bottom-0 left-0 w-1 h-1 bg-amber-500" />
-          <div className="absolute bottom-0 right-0 w-1 h-1 bg-amber-500" />
+          <div className="absolute top-0.5 left-0.5 w-1.5 h-1.5 border-t border-l border-white opacity-80" />
+          <div className="absolute top-0.5 right-0.5 w-1.5 h-1.5 border-t border-r border-white opacity-80" />
+          <div className="absolute bottom-0.5 left-0.5 w-1.5 h-1.5 border-b border-l border-white opacity-80" />
+          <div className="absolute bottom-0.5 right-0.5 w-1.5 h-1.5 border-b border-r border-white opacity-80" />
         </>
       )}
     </div>

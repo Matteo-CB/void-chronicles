@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Void Chronicles",
+  title: "Zero Cycle",
   description: "A pixel-art roguelike dungeon crawler.",
 };
 

@@ -17,18 +17,24 @@ export default function ShopUI() {
   const listRef = useRef<HTMLDivElement>(null);
   const merchant = enemies.find((e: any) => e.id === currentMerchantId);
 
-  if (!merchant || !merchant.shopInventory) return null;
-
+  // --- AUTO-SCROLL LOGIC ---
   useEffect(() => {
     if (listRef.current && menuSelectionIndex >= 0) {
+      // On cible directement l'enfant correspondant à l'index sélectionné
       const selectedEl = listRef.current.children[
         menuSelectionIndex
       ] as HTMLElement;
+
       if (selectedEl) {
-        selectedEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        selectedEl.scrollIntoView({
+          block: "nearest",
+          behavior: "smooth",
+        });
       }
     }
   }, [menuSelectionIndex]);
+
+  if (!merchant || !merchant.shopInventory) return null;
 
   return (
     <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md animate-in fade-in duration-300 font-pixel">
@@ -85,9 +91,15 @@ export default function ShopUI() {
         <div className="flex-1 relative bg-[url('/noise.png')] bg-repeat opacity-90">
           <div className="absolute inset-0 bg-gradient-to-b from-black/60 to-transparent pointer-events-none" />
 
+          {/* MODIFICATION CRITIQUE : 
+             On force grid-cols-3 pour correspondre à la logique de navigation manette (uiSlice).
+             Sur mobile (sm), on passe en 1 colonne, mais la logique manette (prévue pour desktop) 
+             restera fonctionnelle bien que visuellement le curseur sautera des lignes si on joue manette sur mobile.
+             C'est un compromis acceptable pour garantir la stabilité sur Desktop/Console.
+          */}
           <div
             ref={listRef}
-            className="absolute inset-0 p-8 overflow-y-auto gold-scroll grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 content-start"
+            className="absolute inset-0 p-8 overflow-y-auto gold-scroll grid grid-cols-3 gap-4 content-start"
           >
             {merchant.shopInventory.length === 0 ? (
               <div className="col-span-full flex flex-col items-center justify-center h-full text-zinc-700 gap-4">
@@ -97,19 +109,27 @@ export default function ShopUI() {
                 </p>
               </div>
             ) : (
-              merchant.shopInventory.map((item: any, idx: number) => (
-                <div
-                  key={item.id || idx}
-                  className="transform transition-all duration-200"
-                >
-                  <ShopItem
-                    item={item}
-                    canAfford={player.gold >= (item.value || 0)}
-                    isSelected={idx === menuSelectionIndex}
-                    onBuy={() => buyItem(item)}
-                  />
-                </div>
-              ))
+              merchant.shopInventory.map((item: any, idx: number) => {
+                // La sélection est active si l'index correspond ET que nous sommes en mode manette
+                // OU si l'objet est simplement survolé (géré par ShopItem pour la souris)
+                const isSelected = idx === menuSelectionIndex;
+
+                return (
+                  <div
+                    key={item.id || idx}
+                    className={`transform transition-all duration-200 ${
+                      isSelected ? "scale-105 z-10" : "scale-100 z-0"
+                    }`}
+                  >
+                    <ShopItem
+                      item={item}
+                      canAfford={player.gold >= (item.value || 0)}
+                      isSelected={isSelected}
+                      onBuy={() => buyItem(item)}
+                    />
+                  </div>
+                );
+              })
             )}
           </div>
         </div>

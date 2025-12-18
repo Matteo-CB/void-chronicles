@@ -9,7 +9,8 @@ export default function SpellBookUI() {
   const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (listRef.current) {
+    // Scroll automatique si on est dans la liste (index < 100)
+    if (listRef.current && menuSelectionIndex < 100) {
       const el = listRef.current.children[menuSelectionIndex] as HTMLElement;
       if (el) el.scrollIntoView({ block: "nearest", behavior: "smooth" });
     }
@@ -20,10 +21,9 @@ export default function SpellBookUI() {
   return (
     <div className="absolute inset-0 bg-black/95 flex items-center justify-center z-50 backdrop-blur-md animate-in fade-in duration-300 font-pixel">
       <div className="w-[95vw] max-w-[1000px] h-[650px] flex bg-[#0f0714] border border-purple-900/60 shadow-[0_0_120px_rgba(88,28,135,0.25)] rounded-lg overflow-hidden relative">
-        {/* Decorative elements */}
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-900 via-fuchsia-900 to-purple-900 opacity-50"></div>
 
-        {/* --- LEFT PANEL: SPELL LIST --- */}
+        {/* --- GAUCHE : LISTE DES SORTS --- */}
         <div className="w-1/2 border-r border-purple-900/30 flex flex-col bg-black/20">
           <div className="p-6 border-b border-purple-900/30 bg-purple-950/10 flex items-center justify-between">
             <div>
@@ -79,14 +79,30 @@ export default function SpellBookUI() {
                     {spell.description}
                   </p>
 
-                  {/* Equipped Badge */}
+                  {/* Stats (Dégâts/Range) si sélectionné */}
+                  {isSelected && (
+                    <div className="mt-2 flex gap-4 text-[9px] text-zinc-500 border-t border-purple-900/30 pt-2">
+                      <span>
+                        Dégâts:{" "}
+                        <span className="text-zinc-300">{spell.damage}</span>
+                      </span>
+                      <span>
+                        Portée:{" "}
+                        <span className="text-zinc-300">{spell.range}</span>
+                      </span>
+                      <span>
+                        CD:{" "}
+                        <span className="text-zinc-300">{spell.cooldown}s</span>
+                      </span>
+                    </div>
+                  )}
+
                   {isEquipped && (
-                    <div className="absolute top-2 right-12">
+                    <div className="absolute top-2 right-2">
                       <div className="w-2 h-2 bg-green-500 rounded-full shadow-[0_0_5px_#22c55e] animate-pulse"></div>
                     </div>
                   )}
 
-                  {/* Selection Indicator */}
                   {isSelected && (
                     <div className="absolute right-2 bottom-2 text-[9px] text-purple-400 font-bold animate-pulse flex items-center gap-1">
                       <span>ÉQUIPER</span>
@@ -103,15 +119,14 @@ export default function SpellBookUI() {
               <div className="h-full flex flex-col items-center justify-center text-zinc-700 gap-4">
                 <Skull size={48} className="opacity-20" />
                 <p className="text-xs italic opacity-50 text-center px-8">
-                  Votre esprit est vide... Trouvez des parchemins anciens pour
-                  apprendre de nouveaux sortilèges.
+                  Votre esprit est vide...
                 </p>
               </div>
             )}
           </div>
         </div>
 
-        {/* --- RIGHT PANEL: EQUIPPED --- */}
+        {/* --- DROITE : SORTS ÉQUIPÉS --- */}
         <div className="w-1/2 bg-[#050308] flex flex-col relative">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,_rgba(88,28,135,0.15),transparent_70%)] pointer-events-none" />
 
@@ -124,27 +139,22 @@ export default function SpellBookUI() {
               {[0, 1, 2].map((slot) => {
                 const spellId = player.equippedSpells[slot];
                 const spell = player.spells.find((s: any) => s.id === spellId);
+                const isSelected = menuSelectionIndex === 100 + slot;
 
                 return (
                   <div key={slot} className="flex items-center gap-4 group">
-                    {/* Input Key */}
-                    <div className="w-10 h-10 flex items-center justify-center border border-zinc-800 bg-zinc-900 rounded shadow-lg text-zinc-500 font-bold text-xs group-hover:border-purple-500/50 group-hover:text-purple-400 transition-colors">
-                      {inputMethod === "gamepad"
-                        ? slot === 0
-                          ? "LB"
-                          : slot === 1
-                          ? "RB"
-                          : "RT"
-                        : slot + 1}
+                    <div className="w-10 h-10 flex items-center justify-center border border-zinc-800 bg-zinc-900 rounded shadow-lg text-zinc-500 font-bold text-xs">
+                      {slot + 1}
                     </div>
 
-                    {/* Slot Box */}
                     <div
                       className={`
-                        flex-1 h-16 border rounded flex items-center px-4 transition-all duration-300
+                        flex-1 h-16 border rounded flex items-center px-4 transition-all duration-300 relative
                         ${
-                          spell
-                            ? "border-purple-800 bg-purple-950/20 shadow-[0_0_20px_rgba(88,28,135,0.1)]"
+                          isSelected
+                            ? "border-purple-500 bg-purple-900/30 shadow-[0_0_20px_rgba(168,85,247,0.3)] scale-105"
+                            : spell
+                            ? "border-purple-800 bg-purple-950/20"
                             : "border-dashed border-zinc-800 bg-black/40 opacity-50"
                         }
                       `}
@@ -166,14 +176,22 @@ export default function SpellBookUI() {
                               {spell.name}
                             </span>
                             <span className="text-[9px] text-zinc-500 uppercase">
-                              Rang I
+                              Prêt
                             </span>
                           </div>
                         </div>
                       ) : (
                         <span className="text-[10px] text-zinc-700 uppercase tracking-widest w-full text-center">
-                          Emplacement Vide
+                          Vide
                         </span>
+                      )}
+
+                      {/* Selection Corners */}
+                      {isSelected && (
+                        <>
+                          <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-white"></div>
+                          <div className="absolute bottom-0 left-0 w-2 h-2 border-b border-l border-white"></div>
+                        </>
                       )}
                     </div>
                   </div>

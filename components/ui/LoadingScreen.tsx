@@ -10,10 +10,10 @@ export default function LoadingScreen() {
         className="text-center"
       >
         <h1 className="text-6xl text-transparent bg-clip-text bg-gradient-to-b from-purple-400 via-purple-600 to-black tracking-[0.2em] mb-4 drop-shadow-[0_0_25px_rgba(147,51,234,0.5)]">
-          VOID
+          ZERO
         </h1>
         <h2 className="text-4xl text-zinc-600 tracking-[0.5em] uppercase">
-          Chronicles
+          Cycle
         </h2>
       </motion.div>
 

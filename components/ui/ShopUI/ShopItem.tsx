@@ -1,124 +1,113 @@
+import { Coins, Shield, Sparkles, Zap, Scroll, Skull } from "lucide-react";
 import { Item } from "@/types/game";
-import SpriteIcon from "../SpriteIcon";
-import { Coins, Sparkles, ArrowRight } from "lucide-react";
 
 interface ShopItemProps {
   item: Item;
   canAfford: boolean;
+  isSelected: boolean;
   onBuy: () => void;
-  isSelected?: boolean;
 }
 
 export default function ShopItem({
   item,
   canAfford,
-  onBuy,
   isSelected,
+  onBuy,
 }: ShopItemProps) {
-  if (!item) return null;
+  const getIcon = () => {
+    switch (item.type) {
+      case "weapon":
+        return <Skull size={20} className="text-red-400" />;
+      case "armor":
+        return <Shield size={20} className="text-blue-400" />;
+      case "potion":
+        return <Sparkles size={20} className="text-pink-400" />;
+      case "scroll":
+        return <Scroll size={20} className="text-purple-400" />;
+      default:
+        return <Zap size={20} className="text-yellow-400" />;
+    }
+  };
 
   return (
     <div
+      onClick={onBuy}
       className={`
-        relative flex gap-3 p-3 border rounded transition-all duration-150 group h-24 overflow-hidden
-        ${
-          canAfford
-            ? "bg-zinc-900/40 hover:bg-zinc-900/80 cursor-pointer"
-            : "bg-zinc-950/60 opacity-50 grayscale border-zinc-900/50 cursor-not-allowed"
-        }
+        relative group flex flex-col gap-3 p-4 rounded-xl border transition-all duration-200 cursor-pointer overflow-hidden
         ${
           isSelected
-            ? "border-yellow-500/80 bg-zinc-900 shadow-[inset_0_0_20px_rgba(234,179,8,0.1)] scale-[1.02] z-10 ring-1 ring-yellow-500/20"
-            : "border-zinc-800 hover:border-zinc-600"
+            ? "bg-yellow-950/20 border-yellow-500/80 shadow-[0_0_30px_rgba(234,179,8,0.2)] -translate-y-1"
+            : "bg-black/40 border-zinc-800 hover:border-zinc-600"
         }
+        ${!canAfford ? "opacity-50 grayscale-[0.8]" : "opacity-100"}
       `}
-      onClick={canAfford ? onBuy : undefined}
     >
-      {/* Background Glow au survol/sélection */}
+      {/* Selection Glow Effect */}
       {isSelected && (
-        <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-yellow-500/10 to-transparent pointer-events-none"></div>
+        <div className="absolute inset-0 bg-gradient-to-tr from-yellow-500/10 to-transparent pointer-events-none animate-pulse" />
       )}
 
-      {/* Icône */}
-      <div
-        className={`
-        relative w-16 h-full bg-black border flex items-center justify-center shrink-0 rounded shadow-inner overflow-hidden
-        ${isSelected ? "border-yellow-800" : "border-zinc-800"}
-      `}
-      >
-        <div className="absolute inset-0 bg-[radial-gradient(circle,_var(--tw-gradient-stops))] from-zinc-800/50 to-black opacity-50"></div>
-        <SpriteIcon
-          type={item.spriteKey || item.type || "ROCK"}
-          className="w-10 h-10 drop-shadow-[0_4px_4px_rgba(0,0,0,0.5)] z-10"
-        />
-        {/* Rareté indicateur (petit point de couleur) */}
-        <div
-          className="absolute top-1 left-1 w-1.5 h-1.5 rounded-full shadow-sm"
-          style={{ backgroundColor: item.color || "#fff" }}
-        ></div>
-      </div>
-
-      {/* Info Colonne */}
-      <div className="flex-1 flex flex-col justify-between min-w-0 py-0.5">
-        {/* Haut : Nom et Type */}
-        <div>
-          <div className="flex justify-between items-start gap-2">
+      {/* Header: Icon + Name */}
+      <div className="flex justify-between items-start relative z-10">
+        <div className="flex gap-3 items-center">
+          <div
+            className={`p-2 rounded-lg bg-black border shadow-inner ${
+              isSelected ? "border-yellow-700/50" : "border-zinc-800"
+            }`}
+          >
+            {getIcon()}
+          </div>
+          <div>
             <h4
-              className={`font-bold text-xs leading-tight tracking-wide truncate ${
-                isSelected ? "text-yellow-100" : "text-zinc-300"
+              className={`font-bold text-sm leading-tight ${
+                isSelected ? "text-yellow-200" : "text-zinc-300"
               }`}
             >
               {item.name}
             </h4>
+            <span className="text-[10px] text-zinc-500 uppercase tracking-wider font-mono">
+              {item.type}
+            </span>
           </div>
-          <p className="text-[9px] text-zinc-500 uppercase tracking-wider font-mono mt-1 flex items-center gap-1">
-            {item.type} <span className="text-zinc-700">•</span> N.
-            {item.level || 1}
-          </p>
         </div>
+      </div>
 
-        {/* Bas : Stats et Prix */}
-        <div className="flex items-end justify-between mt-1">
-          {/* Mini Stats */}
-          <div className="flex flex-col gap-0.5">
-            {item.stats &&
-              Object.entries(item.stats)
-                .slice(0, 1)
-                .map(([key, val]) => (
-                  <span key={key} className="text-[9px] text-zinc-400">
-                    {key.slice(0, 3).toUpperCase()}{" "}
-                    <span className="text-zinc-200">+{val}</span>
-                  </span>
-                ))}
-          </div>
-
-          {/* Prix Bouton */}
-          <button
-            className={`
-                    flex items-center gap-2 px-2 py-1 rounded border transition-all
-                    ${
-                      canAfford
-                        ? isSelected
-                          ? "bg-yellow-600 border-yellow-500 text-white shadow-lg"
-                          : "bg-zinc-950 border-zinc-800 text-zinc-400 group-hover:border-zinc-600 group-hover:text-zinc-200"
-                        : "bg-transparent border-transparent text-red-800"
-                    }
-                `}
-          >
-            <div
-              className={`flex items-center gap-1 font-mono text-xs font-bold ${
-                canAfford ? "" : "text-red-700 decoration-line-through"
-              }`}
-            >
-              {item.value || 10}
-              <Coins size={10} />
+      {/* Stats */}
+      {item.stats && (
+        <div className="space-y-1 my-1 relative z-10">
+          {Object.entries(item.stats).map(([key, value]) => (
+            <div key={key} className="flex justify-between text-[10px]">
+              <span className="text-zinc-500 uppercase">{key}</span>
+              <span className="text-zinc-300 font-mono">+{String(value)}</span>
             </div>
-
-            {canAfford && isSelected && (
-              <ArrowRight size={10} className="animate-pulse" />
-            )}
-          </button>
+          ))}
         </div>
+      )}
+
+      {/* Description */}
+      <p className="text-[10px] text-zinc-500 leading-snug line-clamp-2 h-8 relative z-10">
+        {item.description}
+      </p>
+
+      {/* Footer: Price */}
+      <div className="mt-auto pt-3 border-t border-dashed border-zinc-800 flex justify-between items-center relative z-10">
+        <div
+          className={`flex items-center gap-1.5 font-mono font-bold text-sm ${
+            canAfford
+              ? isSelected
+                ? "text-yellow-400"
+                : "text-yellow-600"
+              : "text-red-500"
+          }`}
+        >
+          {item.value} <Coins size={12} />
+        </div>
+
+        {isSelected && canAfford && (
+          <span className="text-[9px] bg-yellow-600 text-black font-bold px-1.5 py-0.5 rounded animate-bounce">
+            ACHETER
+          </span>
+        )}
       </div>
     </div>
   );

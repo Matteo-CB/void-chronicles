@@ -33,24 +33,21 @@ export default function ManagementMenu() {
     }
   }, [activeTab, gameState, setGameState]);
 
-  // Gestion Clavier/Manette pour changer d'onglet
+  // Gestion Clavier : On garde TAB, mais on retire les flèches pour ne pas bloquer la navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Navigation Tab
+      // Navigation Tab uniquement
       if (e.key === "Tab") {
         e.preventDefault();
         setActiveTab((prev) => (prev === "inventory" ? "spells" : "inventory"));
       }
-      // Flèches gauche/droite
-      if (e.key === "ArrowLeft") setActiveTab("inventory");
-      if (e.key === "ArrowRight") setActiveTab("spells");
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // Polling Manette (LB/RB)
+  // Polling Manette (LB/RB) pour changer d'onglet
   useEffect(() => {
     let frame: number;
     let lastSwitch = 0;
@@ -58,6 +55,7 @@ export default function ManagementMenu() {
       const gp = navigator.getGamepads()[0];
       if (gp) {
         const now = Date.now();
+        // Cooldown pour éviter le spam de changement d'onglet
         if (now - lastSwitch > 200) {
           if (gp.buttons[4]?.pressed) {
             // LB
