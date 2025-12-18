@@ -10,8 +10,8 @@ export type GameState =
   | "dialogue"
   | "spellbook"
   | "levelup"
-  | "pause_menu" // AJOUTÉ (Indispensable pour le fix)
-  | "management_menu"; // AJOUTÉ (Indispensable pour le fix)
+  | "pause_menu"
+  | "management_menu";
 
 export interface Position {
   x: number;
@@ -85,7 +85,17 @@ export interface Entity {
   visualScale: number;
 
   // IA & Combat
-  aiBehavior?: "chaser" | "archer" | "caster" | "tank" | "boss" | "static";
+  // CORRECTION : Ajout de "aggressive" et "guardian" utilisés dans lib/content.ts
+  aiBehavior?:
+    | "chaser"
+    | "archer"
+    | "caster"
+    | "tank"
+    | "boss"
+    | "static"
+    | "aggressive"
+    | "guardian";
+
   range?: number;
   projectileColor?: string;
   moveTimer?: number;
@@ -104,6 +114,11 @@ export interface Entity {
   isOpen?: boolean;
   shopInventory?: Item[];
   value?: number;
+
+  // CORRECTION : Propriétés manquantes utilisées par createEnemy
+  equipment?: Equipment;
+  spells?: Spell[];
+  rarityColor?: string;
 }
 
 export interface Item {
@@ -193,6 +208,9 @@ export interface Spell {
   description: string;
   effect?: string;
   color?: string;
+
+  // CORRECTION : Ajout de la portée manquante utilisée dans SPELL_DB
+  range?: number;
 }
 
 export interface Projectile {
