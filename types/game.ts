@@ -84,8 +84,10 @@ export interface Entity {
   isHidden?: boolean;
   visualScale: number;
 
+  // CORRECTION : Ajout de la propriété isBoss manquante
+  isBoss?: boolean;
+
   // IA & Combat
-  // CORRECTION : Ajout de "aggressive" et "guardian" utilisés dans lib/content.ts
   aiBehavior?:
     | "chaser"
     | "archer"
@@ -115,7 +117,7 @@ export interface Entity {
   shopInventory?: Item[];
   value?: number;
 
-  // CORRECTION : Propriétés manquantes utilisées par createEnemy
+  // Propriétés étendues
   equipment?: Equipment;
   spells?: Spell[];
   rarityColor?: string;
@@ -208,8 +210,6 @@ export interface Spell {
   description: string;
   effect?: string;
   color?: string;
-
-  // CORRECTION : Ajout de la portée manquante utilisée dans SPELL_DB
   range?: number;
 }
 

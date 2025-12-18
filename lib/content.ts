@@ -10,12 +10,12 @@ import {
 } from "../types/game";
 
 export function getPlayerRank(level: number): string {
-  if (level >= 100) return "Dieu de la Guerre";
-  if (level >= 80) return "Légende Vivante";
+  if (level >= 100) return "Seigneur du Vide";
+  if (level >= 80) return "Maître Absolu";
   if (level >= 60) return "Conquérant";
-  if (level >= 40) return "Maître d'Armes";
-  if (level >= 20) return "Chevalier";
-  if (level >= 10) return "Mercenaire";
+  if (level >= 40) return "Vétéran";
+  if (level >= 20) return "Combattant";
+  if (level >= 10) return "Aventurier";
   return "Recrue";
 }
 
@@ -27,42 +27,43 @@ export function getEntityRarityColor(level: number, isBoss: boolean): string {
   return "#ffffff";
 }
 
+// THEME NEUTRE / FANTASY / VOID
 const ADJECTIFS_NIVEAU = [
-  "Maudit",
-  "Sanglant",
+  "Corrompu",
+  "Sombre",
   "Oublié",
   "Interdit",
-  "Céleste",
+  "Cosmique",
   "Abyssal",
   "Mécanique",
   "Toxique",
   "Glacial",
-  "Infernal",
+  "Volcanique",
   "Silencieux",
-  "Hurlant",
+  "Instable",
 ];
 
 const LIEUX_NIVEAU = [
   "Donjon",
-  "Crypte",
+  "Souterrain",
   "Bastion",
   "Laboratoire",
-  "Nécropole",
-  "Temple",
+  "Ruines",
+  "Hall",
   "Forteresse",
   "Dédale",
   "Observatoire",
-  "Sanctuaire",
+  "Refuge",
   "Prison",
   "Fosse",
 ];
 
 const AMBIANCES = [
-  "Une aura oppressante écrase vos sens.",
-  "Le sol tremble sous le poids d'anciennes machines.",
-  "Des murmures invisibles vous guettent.",
-  "L'air est saturé de magie instable.",
-  "La mort semble avoir élu domicile ici.",
+  "Une pression invisible pèse sur vos épaules.",
+  "Le sol vibre d'une énergie inconnue.",
+  "Des ombres mouvantes vous observent.",
+  "L'air est chargé d'électricité statique.",
+  "Le silence est total, presque surnaturel.",
 ];
 
 export const SPELL_DB: Record<string, Spell> = {
@@ -72,7 +73,7 @@ export const SPELL_DB: Record<string, Spell> = {
     cost: 15,
     range: 5,
     damage: 30,
-    description: "Explosion à distance.",
+    description: "Explosion thermique à distance.",
     cooldown: 4,
     currentCooldown: 0,
     color: "#f97316",
@@ -80,7 +81,7 @@ export const SPELL_DB: Record<string, Spell> = {
   },
   heal: {
     id: "heal",
-    name: "Soin Divin",
+    name: "Soin Vital",
     cost: 25,
     range: 0,
     damage: 0,
@@ -96,7 +97,7 @@ export const SPELL_DB: Record<string, Spell> = {
     cost: 10,
     range: 6,
     damage: 0,
-    description: "Téléportation.",
+    description: "Déplacement instantané.",
     cooldown: 5,
     currentCooldown: 0,
     color: "#0ea5e9",
@@ -108,7 +109,7 @@ export const SPELL_DB: Record<string, Spell> = {
     cost: 12,
     range: 6,
     damage: 25,
-    description: "Tir précis.",
+    description: "Projectile perforant.",
     cooldown: 2,
     currentCooldown: 0,
     color: "#38bdf8",
@@ -116,11 +117,11 @@ export const SPELL_DB: Record<string, Spell> = {
   },
   rage: {
     id: "rage",
-    name: "Fureur",
+    name: "Adrénaline",
     cost: 30,
     range: 0,
     damage: 0,
-    description: "Boost Dégâts.",
+    description: "Boost Dégâts temporaire.",
     cooldown: 15,
     currentCooldown: 0,
     color: "#ef4444",
@@ -128,11 +129,11 @@ export const SPELL_DB: Record<string, Spell> = {
   },
   lightning: {
     id: "lightning",
-    name: "Tonnerre",
+    name: "Décharge",
     cost: 20,
     range: 4,
     damage: 20,
-    description: "Zone large.",
+    description: "Zone électrique.",
     cooldown: 6,
     currentCooldown: 0,
     color: "#facc15",
@@ -144,7 +145,7 @@ export const SPELL_DB: Record<string, Spell> = {
     cost: 18,
     range: 3,
     damage: 5,
-    description: "Dégâts/Temps.",
+    description: "Dégâts sur la durée.",
     cooldown: 5,
     currentCooldown: 0,
     color: "#a3e635",
@@ -152,11 +153,11 @@ export const SPELL_DB: Record<string, Spell> = {
   },
   nova: {
     id: "nova",
-    name: "Nova Solaire",
+    name: "Nova du Vide",
     cost: 50,
     range: 3,
     damage: 60,
-    description: "Explosion massive autour.",
+    description: "Onde de choc massive.",
     cooldown: 12,
     currentCooldown: 0,
     color: "#fbbf24",
@@ -167,7 +168,7 @@ export const SPELL_DB: Record<string, Spell> = {
 const BASE_MOBS = [
   {
     key: "RAT",
-    name: "Rat Muté",
+    name: "Rat Géant",
     hp: 15,
     atk: 4,
     sprite: "RAT",
@@ -176,7 +177,7 @@ const BASE_MOBS = [
   },
   {
     key: "BAT",
-    name: "Vampire Ailé",
+    name: "Chauve-souris",
     hp: 12,
     atk: 3,
     sprite: "BAT",
@@ -185,7 +186,7 @@ const BASE_MOBS = [
   },
   {
     key: "ARCHER",
-    name: "Traqueur Osseux",
+    name: "Squelette Archer",
     hp: 30,
     atk: 8,
     sprite: "SKELETON",
@@ -195,7 +196,7 @@ const BASE_MOBS = [
   },
   {
     key: "MAGE",
-    name: "Sorcier du Culte",
+    name: "Arcaniste Rebelle",
     hp: 25,
     atk: 5,
     sprite: "SORCERER",
@@ -206,7 +207,7 @@ const BASE_MOBS = [
   },
   {
     key: "ORC",
-    name: "Berserker Orc",
+    name: "Guerrier Orc",
     hp: 60,
     atk: 12,
     sprite: "ORC",
@@ -216,7 +217,7 @@ const BASE_MOBS = [
   },
   {
     key: "KNIGHT",
-    name: "Chevalier Déchu",
+    name: "Chevalier Noir",
     hp: 100,
     atk: 15,
     sprite: "KNIGHT",
@@ -235,7 +236,7 @@ const BASE_MOBS = [
   },
   {
     key: "SNIPER",
-    name: "Bandit Tireur",
+    name: "Pillard Tireur",
     hp: 50,
     atk: 20,
     sprite: "BANDIT",
@@ -245,7 +246,7 @@ const BASE_MOBS = [
   },
   {
     key: "LICH",
-    name: "Liche Ancienne",
+    name: "Spectre Ancien",
     hp: 150,
     atk: 10,
     sprite: "GHOST",
@@ -256,7 +257,7 @@ const BASE_MOBS = [
   },
   {
     key: "DRAGON",
-    name: "Dragonnet",
+    name: "Wyverne",
     hp: 300,
     atk: 35,
     sprite: "DRAGON",
@@ -324,7 +325,7 @@ export const LEVELS: LevelConfig[] = Array.from({ length: 100 }, (_, i) => {
     },
     mobs: mobPool,
     boss: {
-      name: "Seigneur",
+      name: "Gardiens du Seuil",
       spriteBase:
         BASE_MOBS[Math.min(BASE_MOBS.length - 1, Math.floor(level / 8) + 2)]
           .key,
@@ -363,6 +364,7 @@ export function createEnemy(
       color: "#fff",
       description: "",
       range: wType === "bow" || wType === "pistol" ? 5 : 1,
+      spriteKey: `WEAPON_${wType.toUpperCase()}`,
     };
   }
 
@@ -374,7 +376,7 @@ export function createEnemy(
   }
 
   if (isBoss) {
-    name = `TITAN: ${base.name}`;
+    name = `COLOSSE: ${base.name}`;
     visualScale = 2.5;
     mobSpells.push(SPELL_DB["fireball"], SPELL_DB["rage"], SPELL_DB["nova"]);
   }
@@ -384,7 +386,7 @@ export function createEnemy(
     type: "enemy",
     name,
     position: pos,
-    direction: "down",
+    // CORRECTION : suppression de la ligne 'direction: "down"' qui causait l'erreur
     spriteKey: base.sprite,
     isHostile: true,
     aiBehavior: base.ai as any,
@@ -401,6 +403,22 @@ export function createEnemy(
       defense: Math.floor(level * 0.8),
       speed: 1,
       xpValue: Math.floor(20 * power * (isBoss ? 50 : 1)),
+      // Initialisation des propriétés manquantes
+      critChance: 0,
+      critDamage: 1.5,
+      dodgeChance: 0,
+      lifesteal: 0,
+      armorPen: 0,
+      cooldownReduction: 0,
+      spellPower: 0,
+      strength: 0,
+      endurance: 0,
+      agility: 0,
+      wisdom: 0,
+      willpower: 0,
+      luck: 0,
+      accuracy: 0,
+      arcane: 0,
     },
     rarityColor: getEntityRarityColor(level, isBoss),
   };
@@ -410,30 +428,58 @@ const WEAPONS: Record<WeaponType, any[]> = {
   sword: [
     { name: "Épée Rouillée", atk: 5 },
     { name: "Glaive", atk: 12 },
-    { name: "Lamerunique", atk: 25 },
-    { name: "Excalibur", atk: 50 },
-    { name: "Ragnarok", atk: 80 },
+    { name: "Lame Runique", atk: 25 },
+    { name: "Lame d'Ether", atk: 50 },
+    { name: "Cataclysme", atk: 80 },
   ],
   bow: [
     { name: "Arc Court", atk: 4 },
     { name: "Arc Composite", atk: 10 },
     { name: "Arc Elfique", atk: 20 },
-    { name: "Arc Céleste", atk: 40 },
-    { name: "Artemis", atk: 70 },
+    { name: "Arc Stellaire", atk: 40 },
+    { name: "Chasseur", atk: 70 },
   ],
   pistol: [
     { name: "Vieux Pistolet", atk: 8 },
     { name: "Revolver", atk: 18 },
     { name: "Blaster", atk: 35 },
     { name: "Annihilateur", atk: 60 },
-    { name: "Juge", atk: 100 },
+    { name: "Arbitre", atk: 100 },
   ],
   staff: [
     { name: "Bâton Noueux", atk: 3 },
     { name: "Bâton de Mage", atk: 8 },
     { name: "Sceptre Royal", atk: 15 },
     { name: "Bâton du Vide", atk: 30 },
-    { name: "Infini", atk: 60 },
+    { name: "Singularité", atk: 60 },
+  ],
+  dagger: [
+    { name: "Dague", atk: 4 },
+    { name: "Surin", atk: 10 },
+    { name: "Lame de l'Ombre", atk: 22 },
+    { name: "Croc de Dragon", atk: 45 },
+    { name: "Dent du Vide", atk: 75 },
+  ],
+  axe: [
+    { name: "Hachette", atk: 6 },
+    { name: "Hache de Guerre", atk: 14 },
+    { name: "Couperet", atk: 28 },
+    { name: "Déchiqueteuse", atk: 55 },
+    { name: "Destructeur", atk: 90 },
+  ],
+  spear: [
+    { name: "Pique", atk: 5 },
+    { name: "Lance", atk: 13 },
+    { name: "Hallebarde", atk: 26 },
+    { name: "Trident", atk: 52 },
+    { name: "Lance-Foudre", atk: 85 },
+  ],
+  wand: [
+    { name: "Baguette", atk: 2 },
+    { name: "Baguette Magique", atk: 6 },
+    { name: "Bâtonnet de Cristal", atk: 12 },
+    { name: "Branche de Vie", atk: 25 },
+    { name: "Conducteur", atk: 50 },
   ],
 };
 
@@ -480,36 +526,55 @@ export function generateLoot(level: number): Item {
     color: "#fff",
     description: "",
     stats: {},
+    spriteKey: "CHEST",
   };
 
   if (type === "weapon") {
-    const wTypes: WeaponType[] = ["sword", "bow", "pistol", "staff"];
+    const wTypes: WeaponType[] = [
+      "sword",
+      "bow",
+      "pistol",
+      "staff",
+      "dagger",
+      "axe",
+      "spear",
+      "wand",
+    ];
     const wt = wTypes[Math.floor(Math.random() * wTypes.length)];
     const baseList = WEAPONS[wt];
     const base =
       baseList[Math.min(baseList.length - 1, Math.floor(level / 15))];
     item.name = `${base.name}`;
     item.weaponType = wt;
-    item.range = wt === "bow" || wt === "pistol" ? 5 : wt === "staff" ? 3 : 1;
+    item.range =
+      wt === "bow" || wt === "pistol" || wt === "wand"
+        ? 5
+        : wt === "staff" || wt === "spear"
+        ? 3
+        : 1;
     item.stats = { attack: Math.floor(base.atk * mult * (1 + level * 0.1)) };
+    item.spriteKey = `WEAPON_${wt.toUpperCase()}`;
     if (rarity !== "common") item.name += ` +${Math.floor(mult)}`;
   } else if (type === "spellbook") {
     const keys = Object.keys(SPELL_DB);
     const spellKey = keys[Math.floor(Math.random() * keys.length)];
     const spell = SPELL_DB[spellKey];
-    item.name = `Grimoire: ${spell.name}`;
+    item.name = `Manuel: ${spell.name}`;
     item.spellId = spellKey;
     item.description = "Utiliser pour apprendre.";
     item.visualColor = spell.color;
+    item.spriteKey = "SPELLBOOK";
   } else if (type === "accessory") {
-    item.name = "Anneau de Puissance";
+    item.name = "Anneau de Force";
     item.stats = {
       maxHp: Math.floor(20 * mult * level),
       maxMana: Math.floor(10 * mult * level),
     };
+    item.spriteKey = "RELIC";
   } else {
     item.name = "Plastron Renforcé";
     item.stats = { defense: Math.floor(5 * mult * level) };
+    item.spriteKey = "ARMOR";
   }
 
   return item;
@@ -525,4 +590,5 @@ export const POTION_ITEM: Item = {
   visualColor: "#f43f5e",
   color: "#f43f5e",
   stats: {},
+  spriteKey: "POTION",
 };
