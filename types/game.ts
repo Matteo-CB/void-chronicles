@@ -31,6 +31,7 @@ export interface Stats {
   mana: number;
   maxMana: number;
   attack: number;
+  attackSpeed: number;
   defense: number;
   speed: number;
   xpValue: number;
