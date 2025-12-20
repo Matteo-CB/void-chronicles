@@ -448,7 +448,7 @@ export const renderInGameUI = (
 
   if (speechBubbles) {
     speechBubbles.forEach((bubble: SpeechBubble) => {
-      const target = visualState.current[bubble.targetId];
+      const target = visualState.current[bubble.targetId && bubble.targetId];
       if (target) {
         const bx = target.x + TILE_SIZE / 2;
         const by = target.y - 30;
