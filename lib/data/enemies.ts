@@ -4,8 +4,11 @@ const BASE_STATS: Stats = {
   hp: 100,
   maxHp: 100,
   mana: 50,
+  xpRegen: 0,
+  hpGain: 0,
   maxMana: 50,
   attack: 10,
+  attackSpeed: 1,
   defense: 2,
   speed: 1,
   xpValue: 10,
@@ -329,5 +332,5 @@ export function createEnemy(
     maxLevel: base.maxLevel,
   };
 
-  return enemyData as any as Entity;
+  return (enemyData as any) as Entity;
 }
