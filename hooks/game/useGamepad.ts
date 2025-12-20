@@ -7,7 +7,7 @@ export const useGamepad = (triggerShake: () => void) => {
   const setInputMethod = useGameStore((state) => state.setInputMethod);
   const interact = useGameStore((state) => state.interact);
   const advanceDialogue = useGameStore((state) => state.advanceDialogue);
-  const dash = useGameStore((state) => state.dash); // Import Dash
+  const dash = useGameStore((state) => state.dash);
 
   // Actions Menus
   const navigateMenu = useGameStore((state) => state.navigateMenu);
@@ -16,6 +16,10 @@ export const useGamepad = (triggerShake: () => void) => {
   const useItem = useGameStore((state) => state.useItem);
   const buyItem = useGameStore((state) => state.buyItem);
   const equipSpell = useGameStore((state) => state.equipSpell);
+
+  // NOUVEAU : Import des fonctions de navigation
+  const cycleMenuTab = useGameStore((state) => state.cycleMenuTab);
+  const confirmMenuAction = useGameStore((state) => state.confirmMenuAction);
 
   const inventory = useGameStore((state) => state.inventory);
   const enemies = useGameStore((state) => state.enemies);
@@ -46,31 +50,50 @@ export const useGamepad = (triggerShake: () => void) => {
       setInputMethod("gamepad");
     }
 
-    const isMenuOpen = ["inventory", "spellbook", "quests"].includes(gameState);
+    // --- CORRECTION : GESTION GAME OVER ---
+    if (gameState === "gameover") {
+      // Si on appuie sur A (0) ou Start (9), on reload
+      if (gp.buttons[0]?.pressed || gp.buttons[9]?.pressed) {
+        if (!buttonStates.current[0]) {
+          window.location.reload();
+          buttonStates.current[0] = true;
+        }
+      } else {
+        buttonStates.current[0] = false;
+      }
+      return; // On arrête ici pour ne pas traiter d'autres inputs
+    }
+
+    // CORRECTION : Ajout de masteries
+    const isMenuOpen = [
+      "inventory",
+      "spellbook",
+      "quests",
+      "masteries",
+    ].includes(gameState);
 
     // --- NAVIGATION ONGLETS (LB/RB) ---
-    // LB (Button 4) : Précédent
+    // LB (4) -> Onglet précédent
     if (gp.buttons[4]?.pressed) {
       if (!buttonStates.current[4]) {
-        if (gameState === "inventory") setGameState("quests");
-        else if (gameState === "quests") setGameState("spellbook");
-        else if (gameState === "spellbook") setGameState("inventory");
-        // Si pas de menu ouvert, LB ne fait rien (ou pourrait ouvrir inventaire si voulu)
+        if (isMenuOpen) {
+          cycleMenuTab("prev");
+        }
         buttonStates.current[4] = true;
       }
     } else buttonStates.current[4] = false;
 
-    // RB (Button 5) : Suivant
+    // RB (5) -> Onglet suivant
     if (gp.buttons[5]?.pressed) {
       if (!buttonStates.current[5]) {
-        if (gameState === "inventory") setGameState("spellbook");
-        else if (gameState === "spellbook") setGameState("quests");
-        else if (gameState === "quests") setGameState("inventory");
+        if (isMenuOpen) {
+          cycleMenuTab("next");
+        }
         buttonStates.current[5] = true;
       }
     } else buttonStates.current[5] = false;
 
-    // Select (8) -> Toggle Inventaire (Entrée Principale)
+    // Select (8) -> Toggle Inventaire
     if (gp.buttons[8]?.pressed) {
       if (!buttonStates.current[8]) {
         if (gameState === "playing") setGameState("inventory");
@@ -89,7 +112,7 @@ export const useGamepad = (triggerShake: () => void) => {
       }
     } else buttonStates.current[9] = false;
 
-    // B (Button 1) -> Retour / DASH
+    // B (Button 1) -> Retour / Dash
     if (gp.buttons[1]?.pressed) {
       if (!buttonStates.current[1]) {
         if (
@@ -101,7 +124,7 @@ export const useGamepad = (triggerShake: () => void) => {
         } else if (gameState === "shop" || gameState === "levelup") {
           closeUi();
         } else if (gameState === "playing") {
-          dash(); // DASH ICI
+          dash();
         }
         buttonStates.current[1] = true;
       }
@@ -131,7 +154,6 @@ export const useGamepad = (triggerShake: () => void) => {
         }
       }
 
-      // Action (A)
       if (gp.buttons[0]?.pressed) {
         if (!buttonStates.current[0]) {
           if (gameState === "inventory") {
@@ -165,12 +187,14 @@ export const useGamepad = (triggerShake: () => void) => {
               const itemToBuy = merchant.shopInventory[menuSelectionIndex];
               if (itemToBuy) buyItem(itemToBuy);
             }
+          } else if (gameState === "masteries") {
+            // CORRECTION : Validation des talents
+            confirmMenuAction();
           }
           buttonStates.current[0] = true;
         }
       } else buttonStates.current[0] = false;
 
-      // Raccourcis Spellbook
       if (gameState === "spellbook") {
         const spell = player.spells[menuSelectionIndex];
         if (spell) {

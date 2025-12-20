@@ -84,13 +84,20 @@ export interface GameStore {
   // UI & Inventaire
   toggleInventory: () => void;
   navigateMenu: (dir: Direction) => void;
+  cycleMenuTab: (direction: "next" | "prev") => void;
+  confirmMenuAction: () => void;
   selectMenuItem: () => void;
+  setMenuSelectionIndex: (index: number) => void; // <--- AJOUT CRITIQUE
 
   addItem: (item: Item) => boolean;
   equipItem: (item: Item) => void;
   unequipItem: (slot: string) => void;
   useItem: (itemId: string) => void;
   buyItem: (item: Item) => void;
+
+  // CORRECTION : Ajout des méthodes manquantes pickupItem et dropItem
+  pickupItem: (item: any) => void;
+  dropItem: (index: number) => void;
 
   closeShop: () => void;
   closeLevelUp: () => void;

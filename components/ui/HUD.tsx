@@ -14,7 +14,7 @@ import {
   Activity,
 } from "lucide-react";
 import SpriteIcon from "./SpriteIcon";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 export default function HUD() {
   const {
@@ -31,6 +31,24 @@ export default function HUD() {
   const [lastHp, setLastHp] = useState(player.stats.hp);
   const [shakeHp, setShakeHp] = useState(false);
   const [delayedHp, setDelayedHp] = useState(player.stats.hp);
+
+  // --- AJOUT : Logique d'animation du niveau ---
+  const [isLevelUpAnimate, setIsLevelUpAnimate] = useState(false);
+  const prevLevelRef = useRef(player.level);
+
+  useEffect(() => {
+    if (player.level > prevLevelRef.current) {
+      setIsLevelUpAnimate(true);
+      const timer = setTimeout(() => setIsLevelUpAnimate(false), 2000);
+      prevLevelRef.current = player.level;
+      return () => clearTimeout(timer);
+    }
+    // Initialisation
+    if (prevLevelRef.current === 0 && player.level > 0) {
+      prevLevelRef.current = player.level;
+    }
+  }, [player.level]);
+  // ---------------------------------------------
 
   const [nearbyInteractive, setNearbyInteractive] = useState<string | null>(
     null
@@ -184,7 +202,15 @@ export default function HUD() {
               />
               <div className="absolute bottom-0 w-full h-1/2 bg-gradient-to-t from-black to-transparent opacity-60 z-10"></div>
             </div>
-            <div className="absolute -top-2 -left-2 bg-zinc-900 border border-zinc-600 text-[9px] px-1.5 py-0.5 rounded text-zinc-400 font-bold shadow-lg">
+
+            {/* CORRECTION : Animation du niveau */}
+            <div
+              className={`absolute -top-2 -left-2 bg-zinc-900 border text-[9px] px-1.5 py-0.5 rounded font-bold shadow-lg transition-all duration-500 ${
+                isLevelUpAnimate
+                  ? "border-yellow-500 text-yellow-400 scale-125 shadow-yellow-500/50"
+                  : "border-zinc-600 text-zinc-400"
+              }`}
+            >
               LVL {player.level}
             </div>
           </div>
@@ -199,6 +225,12 @@ export default function HUD() {
                 {player.name}
                 {player.stats.hp < player.stats.maxHp * 0.3 && (
                   <Activity size={12} className="text-red-500 animate-pulse" />
+                )}
+                {/* CORRECTION : Indicateur de points de talent disponibles */}
+                {player.masteryPoints > 0 && (
+                  <span className="text-[9px] text-yellow-400 animate-pulse ml-1 flex items-center">
+                    <Zap size={10} className="mr-0.5" /> +{player.masteryPoints}
+                  </span>
                 )}
               </h2>
               <div className="flex gap-2 text-[9px]">

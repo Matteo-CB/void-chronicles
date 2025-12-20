@@ -27,6 +27,8 @@ export const createPlayerSlice: StateCreator<
     | "closeLevelUp"
     | "startGameWithClass"
     | "dash"
+    | "gainXp"
+    | "levelUp"
   >
 > = (set, get) => ({
   movePlayer: (direction: Direction) => {
@@ -48,14 +50,17 @@ export const createPlayerSlice: StateCreator<
   calculateStats: () => {
     const { player } = get();
 
-    // 1. Stats de base depuis les attributs
-    let atk = 5 + player.stats.strength * 1.5;
-    let maxHp = 100 + player.stats.endurance * 12;
-    let maxMana = 50 + player.stats.wisdom * 10;
-    let crit = 0.05 + player.stats.agility * 0.015;
+    // 1. Stats de base (Calcul automatique)
+    const levelBonus = (player.level - 1) * 0.5;
+
+    let atk = 10 + player.stats.strength * 3.0 + levelBonus;
+    let maxHp = 100 + player.stats.endurance * 12 + player.level * 10;
+    let maxMana = 50 + player.stats.wisdom * 10 + player.level * 5;
+
+    let crit = 0.05 + player.stats.agility * 0.02;
     let dodge = 0 + player.stats.agility * 0.01;
     let armorPen = 0 + player.stats.accuracy * 2;
-    let spellPwr = 0 + player.stats.arcane * 3;
+    let spellPwr = 0 + player.stats.arcane * 4;
     let cdr = 0 + player.stats.willpower * 0.01;
     let critDmg = 1.5 + player.stats.luck * 0.05;
     let lifesteal = 0;
@@ -75,26 +80,34 @@ export const createPlayerSlice: StateCreator<
     if (player.equipment.armor) {
       def += player.equipment.armor.stats?.defense || 0;
       maxHp += player.equipment.armor.stats?.maxHp || 0;
+      if (player.equipment.armor.stats?.speed)
+        dodge += player.equipment.armor.stats.speed * 0.1;
     }
 
     if (player.equipment.accessory) {
-      maxHp += player.equipment.accessory.stats?.maxHp || 0;
-      maxMana += player.equipment.accessory.stats?.maxMana || 0;
-      crit += player.equipment.accessory.stats?.critChance || 0;
-      critDmg = Math.max(
-        critDmg,
-        player.equipment.accessory.stats?.critDamage || 1.5
-      );
+      const accStats = player.equipment.accessory.stats || {};
+      maxHp += accStats.maxHp || 0;
+      maxMana += accStats.maxMana || 0;
+      crit += accStats.critChance || 0;
+      critDmg = Math.max(critDmg, accStats.critDamage || 1.5);
+      atk += accStats.attack || 0;
+      def += accStats.defense || 0;
+      dodge += accStats.dodgeChance || 0;
+      lifesteal += accStats.lifesteal || 0;
+      spellPwr += accStats.spellPower || 0;
     }
 
     // 3. Bonus de Maîtrises (Passifs)
     if (player.masteries) {
       player.masteries.forEach((m: any) => {
-        if (m.type === "passive" && m.currentRank > 0) {
-          if (m.id === "m_ring_might") atk *= 1 + 0.05 * m.currentRank;
-          if (m.id === "m_relic_life") maxHp += 25 * m.currentRank;
-          if (m.id === "m_boots_speed") dodge += 0.02 * m.currentRank;
-          if (m.id === "m_gem_focus") cdr += 0.05 * m.currentRank;
+        const rank = m.currentRank || 1;
+        const id = m.id || m;
+
+        if ((m.type === "passive" || typeof m === "string") && rank > 0) {
+          if (id === "m_ring_might") atk *= 1 + 0.1 * rank;
+          if (id === "m_relic_life") maxHp += 25 * rank;
+          if (id === "m_boots_speed") dodge += 0.02 * rank;
+          if (id === "m_gem_focus") cdr += 0.05 * rank;
         }
       });
     }
@@ -115,7 +128,6 @@ export const createPlayerSlice: StateCreator<
           armorPen: armorPen,
           spellPower: spellPwr,
           cooldownReduction: Math.min(0.5, cdr),
-          // On s'assure que les HP/Mana actuels ne dépassent pas le nouveau max
           hp: Math.min(state.player.stats.hp, Math.floor(maxHp)),
           mana: Math.min(state.player.stats.mana, Math.floor(maxMana)),
         },
@@ -131,70 +143,14 @@ export const createPlayerSlice: StateCreator<
   },
 
   incrementAttribute: (attr: string) => {
-    const { player, calculateStats } = get();
-    if (!player.attributePoints || player.attributePoints <= 0) return;
-
-    if (attr in player.stats) {
-      const key = attr as keyof Stats;
-      const currentVal = player.stats[key];
-
-      const newStats = { ...player.stats, [key]: currentVal + 1 };
-      set({
-        player: {
-          ...player,
-          stats: newStats,
-          attributePoints: player.attributePoints - 1,
-        },
-      });
-      calculateStats();
-    }
+    // Désactivé (Auto-scale)
   },
 
   unlockMastery: (masteryId: string) => {
-    const { player, addItem, calculateStats, addLog } = get();
-    if (!player.masteryPoints || player.masteryPoints <= 0) return;
-
-    const newMasteries = [...player.masteries];
-    const mIndex = newMasteries.findIndex((m) => m.id === masteryId);
-    if (mIndex === -1) return;
-
-    const mastery = { ...newMasteries[mIndex] };
-    if (player.masteryPoints < mastery.cost) return;
-    if (mastery.type === "passive" && mastery.currentRank >= mastery.maxRank)
-      return;
-
-    const newPoints = player.masteryPoints - mastery.cost;
-
-    if (mastery.type === "consumable") {
-      if (mastery.id === "m_potion_pack") {
-        addItem({ ...POTION_ITEM, id: `pot_${Math.random()}` });
-        addItem({ ...POTION_ITEM, id: `pot_${Math.random()}` });
-        addLog("2 Potions reçues !");
-      } else if (mastery.id === "m_scroll_knowledge") {
-        set((s) => ({
-          player: {
-            ...s.player,
-            mana: s.player.stats.maxMana,
-            xp: s.player.xp + 20,
-          },
-        }));
-        addLog("Savoir ancien acquis !");
-      }
-    } else {
-      mastery.currentRank += 1;
-      addLog(`Amélioré : ${mastery.name} (Rang ${mastery.currentRank})`);
+    const { createMasterySlice } = get() as any;
+    if (createMasterySlice?.unlockMastery) {
+      createMasterySlice.unlockMastery(masteryId);
     }
-
-    newMasteries[mIndex] = mastery;
-
-    set({
-      player: {
-        ...player,
-        masteries: newMasteries,
-        masteryPoints: newPoints,
-      },
-    });
-    calculateStats();
   },
 
   closeLevelUp: () => {
@@ -205,17 +161,13 @@ export const createPlayerSlice: StateCreator<
     const { initGame } = get();
     const selectedClass = CLASSES.find((c) => c.id === classId) || CLASSES[0];
 
-    // On lance le jeu normalement (reset map etc)
     initGame(false);
 
-    // On applique ensuite le template de classe
     set((state) => {
       const newStats = { ...state.player.stats, ...selectedClass.baseStats };
-      // S'assurer que HP/Mana sont au max au départ
       newStats.hp = newStats.maxHp;
       newStats.mana = newStats.maxMana;
 
-      // Inventaire de départ
       const startInv = [...state.inventory];
       if (selectedClass.startingEquipment.potionCount > 0) {
         for (let i = 0; i < selectedClass.startingEquipment.potionCount; i++) {
@@ -237,6 +189,107 @@ export const createPlayerSlice: StateCreator<
     });
 
     get().calculateStats();
+  },
+
+  // --- LOGIQUE DE PROGRESSION ROBUSTE ET ATOMIQUE ---
+
+  gainXp: (amount: number) => {
+    const { player, addLog, calculateStats } = get();
+
+    // Copie locale des valeurs pour le calcul
+    let currentXp = player.xp + amount;
+    let currentLevel = player.level;
+    let currentXpToNext = player.xpToNext;
+    let currentMasteryPoints = player.masteryPoints;
+    let currentStats = { ...player.stats };
+
+    let leveledUp = false;
+    let levelsGained = 0;
+
+    // Boucle tant qu'on a assez d'XP pour monter
+    while (currentXp >= currentXpToNext) {
+      currentXp -= currentXpToNext;
+      currentLevel++;
+
+      // Augmentation progressive du coût du prochain niveau (x1.5)
+      currentXpToNext = Math.floor(currentXpToNext * 1.5);
+
+      // Récompenses
+      currentMasteryPoints += 1; // +1 Point d'Âme
+      levelsGained++;
+      leveledUp = true;
+
+      // Soin complet
+      currentStats.hp = currentStats.maxHp;
+      currentStats.mana = currentStats.maxMana;
+    }
+
+    // MISE À JOUR UNIQUE DU STORE (Évite les conflits)
+    set((state) => ({
+      player: {
+        ...state.player,
+        xp: currentXp,
+        level: currentLevel,
+        xpToNext: currentXpToNext,
+        masteryPoints: currentMasteryPoints,
+        stats: leveledUp
+          ? {
+              ...state.player.stats,
+              hp: state.player.stats.maxHp,
+              mana: state.player.stats.maxMana,
+            }
+          : state.player.stats,
+      },
+      // Effets visuels si niveau gagné
+      screenShake: leveledUp ? 10 : state.screenShake,
+      particles: leveledUp
+        ? ([
+            ...state.particles,
+            ...Array.from({ length: 30 }, () => ({
+              id: Math.random(),
+              x: state.player.position.x,
+              y: state.player.position.y,
+              vx: (Math.random() - 0.5) * 0.5,
+              vy: (Math.random() - 0.5) * 0.5,
+              life: 2.0,
+              color: "#fbbf24",
+              size: Math.random() * 0.2 + 0.1,
+              gravity: 0.01,
+              type: "spark",
+            })),
+          ] as any)
+        : state.particles,
+      floatingTexts: leveledUp
+        ? [
+            ...state.floatingTexts,
+            {
+              id: Math.random(),
+              x: state.player.position.x,
+              y: state.player.position.y - 2,
+              text: `NIVEAU ${currentLevel}!`,
+              color: "#fbbf24",
+              life: 3.0,
+              velocity: 0.02,
+              isCrit: true,
+            },
+          ]
+        : state.floatingTexts,
+    }));
+
+    if (leveledUp) {
+      addLog(`✨ NIVEAU ${currentLevel} ATTEINT ! (+${levelsGained} Talents)`);
+      calculateStats(); // Recalcule les stats basées sur le nouveau niveau
+    } else {
+      // Log optionnel pour l'XP
+      // addLog(`+${amount} XP`);
+    }
+  },
+
+  // Fonction purement visuelle/helper maintenant, la logique est dans gainXp
+  levelUp: () => {
+    // Cette fonction est gardée pour compatibilité si appelée manuellement,
+    // mais gainXp fait tout le travail maintenant.
+    get().gainXp(0);
   },
 
   dash: () => {
@@ -270,6 +323,7 @@ export const createPlayerSlice: StateCreator<
     for (let i = 1; i <= DASH_DIST; i++) {
       const checkX = Math.round(player.position.x + dx * i);
       const checkY = Math.round(player.position.y + dy * i);
+
       if (
         checkY < 0 ||
         checkY >= map.length ||
@@ -277,7 +331,9 @@ export const createPlayerSlice: StateCreator<
         checkX >= map[0].length
       )
         break;
+
       if (map[checkY][checkX].type === "wall") break;
+
       finalX = checkX;
       finalY = checkY;
     }

@@ -1,7 +1,8 @@
 import { useEffect, useRef } from "react";
 import useGameStore from "@/store/gameStore";
 
-export const useKeyboard = (triggerShake: () => void) => {
+// CORRECTION: On type explicitement l'argument triggerShake
+export const useKeyboard = (triggerShake: (amount: number) => void) => {
   const keysPressed = useRef<Record<string, boolean>>({});
 
   const movePlayer = useGameStore((state) => state.movePlayer);
@@ -9,7 +10,7 @@ export const useKeyboard = (triggerShake: () => void) => {
   const interact = useGameStore((state) => state.interact);
   const advanceDialogue = useGameStore((state) => state.advanceDialogue);
   const setInputMethod = useGameStore((state) => state.setInputMethod);
-  const dash = useGameStore((state) => state.dash); // Import du Dash
+  const dash = useGameStore((state) => state.dash);
 
   // Actions de Menu
   const navigateMenu = useGameStore((state) => state.navigateMenu);
@@ -18,6 +19,10 @@ export const useKeyboard = (triggerShake: () => void) => {
   const unequipItem = useGameStore((state) => state.unequipItem);
   const equipSpell = useGameStore((state) => state.equipSpell);
   const buyItem = useGameStore((state) => state.buyItem);
+
+  // NOUVEAU : Import des fonctions de navigation globale
+  const cycleMenuTab = useGameStore((state) => state.cycleMenuTab);
+  const confirmMenuAction = useGameStore((state) => state.confirmMenuAction);
 
   const inventory = useGameStore((state) => state.inventory);
   const menuSelectionIndex = useGameStore((state) => state.menuSelectionIndex);
@@ -35,9 +40,13 @@ export const useKeyboard = (triggerShake: () => void) => {
       keysPressed.current[e.code] = true;
       keysPressed.current[e.key] = true;
 
-      const isMenuOpen = ["inventory", "spellbook", "quests"].includes(
-        gameState
-      );
+      // CORRECTION : Ajout de "masteries" ici pour que le menu soit considéré ouvert
+      const isMenuOpen = [
+        "inventory",
+        "spellbook",
+        "quests",
+        "masteries",
+      ].includes(gameState);
 
       // --- 1. OUVERTURE / FERMETURE (I) ---
       if (e.code === "KeyI") {
@@ -52,10 +61,16 @@ export const useKeyboard = (triggerShake: () => void) => {
       // --- 2. NAVIGATION ONGLETS (TAB) ---
       if (e.code === "Tab") {
         e.preventDefault();
-        if (gameState === "inventory") setGameState("spellbook");
-        else if (gameState === "spellbook") setGameState("quests");
-        else if (gameState === "quests") setGameState("inventory");
-        else if (gameState === "playing") setGameState("inventory");
+
+        // --- CORRECTION CRITIQUE : Empêche le double saut d'onglet ---
+        if (e.repeat) return;
+
+        // Utilisation de la fonction du store pour cycler proprement incluant les talents
+        if (gameState === "playing") {
+          setGameState("inventory");
+        } else {
+          cycleMenuTab(e.shiftKey ? "prev" : "next");
+        }
         return;
       }
 
@@ -65,7 +80,8 @@ export const useKeyboard = (triggerShake: () => void) => {
         gameState === "spellbook" ||
         gameState === "shop" ||
         gameState === "levelup" ||
-        gameState === "quests"
+        gameState === "quests" ||
+        gameState === "masteries" // CORRECTION : Ajout de masteries
       ) {
         e.preventDefault();
 
@@ -77,6 +93,9 @@ export const useKeyboard = (triggerShake: () => void) => {
         if (e.code === "ArrowRight" || e.code === "KeyD") navigateMenu("right");
 
         if (e.code === "Enter" || e.code === "Space") {
+          // --- CORRECTION CRITIQUE : Empêche les actions multiples involontaires ---
+          if (e.repeat) return;
+
           if (gameState === "inventory") {
             if (menuSelectionIndex >= 100) {
               const slot =
@@ -110,6 +129,9 @@ export const useKeyboard = (triggerShake: () => void) => {
               const item = merchant.shopInventory[menuSelectionIndex];
               if (item) buyItem(item);
             }
+          } else if (gameState === "masteries") {
+            // CORRECTION : Appel de l'action de confirmation pour les talents
+            confirmMenuAction();
           }
         }
 
@@ -151,6 +173,7 @@ export const useKeyboard = (triggerShake: () => void) => {
         // --- AJOUT DASH ---
         if (e.code === "Space" || e.code === "ShiftLeft") {
           dash();
+          // triggerShake(2); // Optionnel si dash ne le fait pas déjà via store
         }
       }
 
@@ -214,7 +237,10 @@ export const useKeyboard = (triggerShake: () => void) => {
     buyItem,
     enemies,
     currentMerchantId,
-    dash, // Dépendance
+    dash,
+    triggerShake, // Ajout dépendance
+    cycleMenuTab, // Ajout dépendance
+    confirmMenuAction, // Ajout dépendance
   ]);
 
   return keysPressed;

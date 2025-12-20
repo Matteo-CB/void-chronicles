@@ -2,9 +2,9 @@ import { useEffect, useRef } from "react";
 import useGameStore from "@/store/gameStore";
 
 export const useGameLoop = (
-  updateShake: () => void,
-  keysPressed: React.MutableRefObject<Record<string, boolean>>,
-  pollGamepad: (
+  updateShake?: (amount: number) => void,
+  keysPressed?: React.MutableRefObject<Record<string, boolean>>,
+  pollGamepad?: (
     now: number,
     lastMoveTime: React.MutableRefObject<number>
   ) => void
@@ -25,22 +25,23 @@ export const useGameLoop = (
       lastTimeRef.current = time;
 
       // 1. Mise à jour visuelle (Shake)
-      updateShake();
+      if (updateShake) updateShake(0);
 
       // 2. Logique du jeu
       if (gameState === "playing") {
-        updateGameLogic(deltaTime);
+        // CORRECTION MAJEURE : On envoie des MILLISECONDES (ms).
+        // On ne divise plus par 1000 ici, car combatLogic et enemies.ts gèrent la conversion eux-mêmes.
+        const safeDt = Math.min(deltaTime, 100); // Cap à 100ms pour éviter les sauts (lag)
+        updateGameLogic(safeDt);
 
         // 3. Mouvement Clavier (Lissage)
         const MOVEMENT_COOLDOWN = 110;
         let keyboardActive = false;
 
-        // On utilise 'time' ici (performance.now)
-        if (time - lastMoveTime.current > MOVEMENT_COOLDOWN) {
+        if (keysPressed && time - lastMoveTime.current > MOVEMENT_COOLDOWN) {
           const k = keysPressed.current;
           let moved = false;
 
-          // Codes physiques pour compatibilité AZERTY/QWERTY
           if (k["ArrowUp"] || k["KeyW"] || k["KeyZ"]) {
             movePlayer("up");
             moved = true;
@@ -56,23 +57,19 @@ export const useGameLoop = (
           }
 
           if (moved) {
-            lastMoveTime.current = time; // On enregistre le temps compatible
+            lastMoveTime.current = time;
             keyboardActive = true;
           }
         }
 
         // 4. Gestion Manette
-        // CORRECTION MAJEURE : On passe 'time' au lieu de Date.now()
-        // pour que le clavier et la manette partagent la même échelle de temps.
-        if (!keyboardActive) {
-          pollGamepad(time, lastMoveTime);
-        } else {
-          // On poll les boutons mais on ignore le stick pour ne pas bloquer le clavier
+        if (pollGamepad) {
+          // On poll toujours la manette, mais on ignore le stick si le clavier vient d'être utilisé
           pollGamepad(time, lastMoveTime);
         }
       } else {
-        // Si pas en jeu (Menus), on poll la manette avec le bon temps
-        pollGamepad(time, lastMoveTime);
+        // Si pas en jeu (Menus), on poll la manette pour la navigation
+        if (pollGamepad) pollGamepad(time, lastMoveTime);
       }
 
       requestRef.current = requestAnimationFrame(gameLoop);

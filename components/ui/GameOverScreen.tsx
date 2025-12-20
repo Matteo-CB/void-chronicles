@@ -1,105 +1,95 @@
+"use client";
+
 import useGameStore from "@/store/gameStore";
-import { Skull, RefreshCw, AlertTriangle } from "lucide-react";
+import { RefreshCw, Skull } from "lucide-react";
 import { useEffect, useState } from "react";
 
 export default function GameOverScreen() {
-  const { player, dungeonLevel, inputMethod } = useGameStore(
-    (state: any) => state
-  );
-  const [isVisible, setIsVisible] = useState(false);
+  const { player, dungeonLevel, inputMethod } = useGameStore((state) => state);
+  const [canRestart, setCanRestart] = useState(false);
 
   useEffect(() => {
-    // Petit délai pour l'animation d'apparition
-    const timer = setTimeout(() => setIsVisible(true), 500);
+    // Petit délai pour éviter le miss-click immédiat
+    const timer = setTimeout(() => setCanRestart(true), 1000);
     return () => clearTimeout(timer);
   }, []);
 
-  const handleRestart = () => {
-    window.location.reload();
-  };
+  // --- CORRECTION : Écouteur Clavier pour le Restart ---
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!canRestart) return;
+      // Supporte Entrée, Espace, mais aussi A et E (actions classiques)
+      if (["Enter", " ", "a", "A", "e", "E"].includes(e.key)) {
+        window.location.reload();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [canRestart]);
 
   return (
-    <div className="absolute inset-0 z-[100] bg-black flex flex-col items-center justify-center font-pixel animate-in fade-in duration-1000">
-      <div className="absolute inset-0 bg-[url('/noise.png')] opacity-10 pointer-events-none" />
-
-      {/* Background Ambience */}
-      <div className="absolute inset-0 bg-gradient-to-t from-red-950/40 via-transparent to-transparent pointer-events-none" />
-
-      <div
-        className={`flex flex-col items-center gap-8 transition-all duration-1000 transform ${
-          isVisible ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0"
-        }`}
-      >
+    <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/95 animate-in fade-in duration-1000 font-pixel">
+      <div className="flex flex-col items-center gap-8 text-center p-8 border-4 border-red-900/50 bg-red-950/10 rounded-xl shadow-[0_0_100px_rgba(220,38,38,0.2)]">
         <div className="relative">
           <Skull
             size={80}
-            className="text-zinc-800 animate-pulse absolute top-0 left-1/2 -translate-x-1/2 blur-lg scale-150"
+            className="text-red-600 animate-pulse drop-shadow-[0_0_15px_rgba(220,38,38,0.8)]"
           />
-          <Skull
-            size={80}
-            className="text-red-600 relative z-10 drop-shadow-[0_0_15px_rgba(220,38,38,0.5)]"
-          />
+          <div className="absolute inset-0 blur-md bg-red-500/20 rounded-full animate-ping"></div>
         </div>
 
-        <div className="text-center space-y-2">
-          <h1 className="text-5xl md:text-7xl font-bold text-transparent bg-clip-text bg-gradient-to-b from-red-500 to-red-900 tracking-widest uppercase drop-shadow-sm">
+        <div>
+          <h2 className="text-6xl font-black text-red-600 uppercase tracking-widest mb-2 drop-shadow-md glitch-text">
             MORT
-          </h1>
-          <p className="text-red-400/60 font-serif italic text-lg tracking-wide">
-            Votre voyage s'arrête ici.
+          </h2>
+          <p className="text-zinc-500 font-mono text-sm tracking-wide">
+            Votre âme rejoint le néant...
           </p>
         </div>
 
-        <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-lg backdrop-blur-sm text-center min-w-[300px] space-y-4 shadow-2xl">
-          <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm text-zinc-400">
-            <span className="text-right uppercase tracking-wider text-[10px] text-zinc-600 font-bold">
-              Niveau
-            </span>
-            <span className="text-left font-mono text-zinc-200">
-              {player.level}
-            </span>
-
-            <span className="text-right uppercase tracking-wider text-[10px] text-zinc-600 font-bold">
-              Profondeur
-            </span>
-            <span className="text-left font-mono text-zinc-200">
-              Étage {dungeonLevel}
-            </span>
-
-            <span className="text-right uppercase tracking-wider text-[10px] text-zinc-600 font-bold">
-              Or
-            </span>
-            <span className="text-left font-mono text-yellow-500">
-              {player.gold}
-            </span>
+        <div className="flex flex-col gap-2 w-full bg-black/40 p-4 rounded border border-red-900/30">
+          <div className="flex justify-between text-red-200/80 font-mono text-xs">
+            <span>NIVEAU ATTEINT</span>
+            <span className="font-bold text-white">{player.level}</span>
+          </div>
+          <div className="flex justify-between text-red-200/80 font-mono text-xs">
+            <span>ÉTAGE DU DONJON</span>
+            <span className="font-bold text-white">{dungeonLevel}</span>
+          </div>
+          <div className="flex justify-between text-red-200/80 font-mono text-xs">
+            <span>OR COLLECTÉ</span>
+            <span className="font-bold text-yellow-500">{player.gold}</span>
           </div>
         </div>
 
-        <div className="mt-8 flex flex-col items-center gap-4">
-          <button
-            onClick={handleRestart}
-            className="group relative px-8 py-3 bg-red-950/20 hover:bg-red-900/30 border border-red-900/50 rounded transition-all duration-300 hover:scale-105 active:scale-95"
-          >
-            <div className="flex items-center gap-3">
-              {inputMethod === "gamepad" && (
-                <span className="bg-zinc-800 text-white px-2 py-0.5 rounded border border-zinc-600 text-xs font-bold shadow-lg animate-pulse">
-                  A
-                </span>
-              )}
-              <RefreshCw
-                className={`w-5 h-5 text-red-500 ${
-                  inputMethod === "mouse" ? "group-hover:rotate-180" : ""
-                } transition-transform duration-500`}
-              />
-              <span className="text-red-200 font-bold uppercase tracking-widest text-sm">
-                Recommencer
-              </span>
-            </div>
-          </button>
+        <button
+          onClick={() => canRestart && window.location.reload()}
+          className={`
+            group flex items-center gap-3 px-8 py-3 rounded text-white font-bold uppercase tracking-wider transition-all duration-300
+            ${
+              canRestart
+                ? "bg-red-700 hover:bg-red-600 hover:scale-105 shadow-[0_0_20px_rgba(220,38,38,0.4)] cursor-pointer"
+                : "bg-zinc-800 text-zinc-500 cursor-not-allowed grayscale opacity-50"
+            }
+          `}
+        >
+          <RefreshCw
+            size={20}
+            className={
+              canRestart
+                ? "group-hover:rotate-180 transition-transform duration-500"
+                : ""
+            }
+          />
+          <span>Recommencer</span>
+        </button>
 
-          <p className="text-[10px] text-zinc-600 uppercase tracking-widest">
-            Le vide n'oublie jamais
-          </p>
+        <div className="text-[10px] text-zinc-600 uppercase tracking-widest animate-pulse">
+          {canRestart
+            ? inputMethod === "gamepad"
+              ? "Appuyez sur A pour revivre"
+              : "Appuyez sur ESPACE ou A pour revivre"
+            : "..."}
         </div>
       </div>
     </div>

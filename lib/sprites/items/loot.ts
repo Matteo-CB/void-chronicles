@@ -39,3 +39,19 @@ export function drawArmor(ctx: DrawContext) {
   r(ctx, 14, 10, 4, 12, P.gold);
   p(ctx, 15, 12, "#fff");
 }
+
+// --- AJOUT : Parchemin de Quête ---
+export function drawQuestScroll(ctx: DrawContext) {
+  // Fond papier
+  r(ctx, 8, 6, 16, 20, "#fef3c7");
+  // Bordures haut/bas (rouleaux bois)
+  r(ctx, 6, 4, 20, 4, "#92400e");
+  r(ctx, 6, 24, 20, 4, "#92400e");
+  // Lignes de texte
+  r(ctx, 10, 10, 12, 2, "#d1d5db");
+  r(ctx, 10, 14, 10, 2, "#d1d5db");
+  r(ctx, 10, 18, 12, 2, "#d1d5db");
+  // Sceau rouge
+  r(ctx, 18, 20, 6, 6, "#dc2626");
+  p(ctx, 20, 22, "#991b1b");
+}

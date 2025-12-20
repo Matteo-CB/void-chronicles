@@ -4,9 +4,12 @@ import { generateDungeon } from "@/lib/dungeon";
 import { calculateFOV } from "@/lib/dungeon/fov";
 import { POTION_ITEM } from "@/lib/data/items";
 import { Direction } from "@/types/game";
-import { getInitialMasteries } from "@/lib/data/masteries";
+// CORRECTION : Suppression de l'import incorrect
+// import { getInitialMasteries } from "@/lib/data/masteries";
 import { handleMovePlayer } from "./map/mapMovement";
 import storyData from "@/lib/data/storyData.json";
+// AJOUT : Import de la base de données des quêtes
+import { QUEST_DB } from "@/lib/data/quests";
 
 const STAIRS_STATS = {
   hp: 1000,
@@ -126,6 +129,7 @@ export const createMapSlice: StateCreator<
         isLoading: false,
       });
     } else {
+      // --- NOUVELLE PARTIE ---
       const { map, spawn, entities, levelConfig } =
         generateDungeon(currentLevel);
       const mapWithFOV = calculateFOV(map, spawn);
@@ -176,8 +180,10 @@ export const createMapSlice: StateCreator<
           xpToNext: 100,
           attributePoints: 0,
           masteryPoints: 0,
-          masteries: getInitialMasteries(),
+          // CORRECTION: Initialisation vide directe au lieu de la fonction manquante
+          masteries: [],
           equipment: { weapon: null, armor: null, accessory: null },
+          quests: [], // Reset des quêtes
         },
         dungeonLevel: currentLevel,
         inventory: [{ ...POTION_ITEM, id: "p1" }],
@@ -190,6 +196,10 @@ export const createMapSlice: StateCreator<
         isLoading: false,
         gameState: "playing",
       });
+
+      // --- TRIGGER QUÊTE DU TUTORIEL ---
+      // On lance la première quête pour guider le joueur
+      get().acceptQuest(QUEST_DB.TUTO_FIRST_STEPS);
 
       const story = storyData as any;
       const evt = story.levelEvents[currentLevel.toString()];
@@ -235,7 +245,14 @@ export const createMapSlice: StateCreator<
     handleMovePlayer(set, get, direction),
 
   interactMapLogic: () => {
-    const { player, enemies, addItem, addLog, startCutscene } = get();
+    const {
+      player,
+      enemies,
+      addItem,
+      addLog,
+      startCutscene,
+      updateQuestProgress,
+    } = get();
     let dx = 0,
       dy = 0;
     if (player.direction === "up") dy = -1;
@@ -266,6 +283,10 @@ export const createMapSlice: StateCreator<
               e.id === target.id ? { ...e, isOpen: true } : e
             ),
           });
+
+          // --- TRIGGER QUÊTE : COLLECTE ---
+          // On notifie le système de quête qu'on a ramassé un objet
+          updateQuestProgress("collect", loot.id, 1);
         }
       } else if (target.type === "merchant") {
         set({ gameState: "shop", currentMerchantId: target.id });
@@ -294,6 +315,10 @@ export const createMapSlice: StateCreator<
             dungeonLevel: nextLevel,
             isLoading: false,
           });
+
+          // --- TRIGGER QUÊTE : EXPLORATION ---
+          // On valide les objectifs de type "Atteindre le niveau X"
+          updateQuestProgress("explore", nextLevel.toString());
 
           if (levelEvent && levelEvent.introCutsceneId) {
             startCutscene(levelEvent.introCutsceneId);

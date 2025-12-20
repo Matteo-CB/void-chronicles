@@ -1,79 +1,74 @@
-import { Tile, Position } from "@/types/game";
+import { Tile } from "@/types/game";
 
-// On garde une bonne portée pour ne pas se sentir enfermé
-const VIEW_RADIUS = 11.0;
+// AUGMENTATION DU RAYON DE VISION (8 -> 12)
+const RADIUS = 12;
 
-/**
- * Calcule le FOV avec une atténuation douce pour un rendu "agréable".
- */
-export function calculateFOV(map: Tile[][], playerPos: Position): Tile[][] {
-  const h = map.length;
-  const w = map[0].length;
-
-  // 1. Reset : On garde la mémoire de l'exploration
-  const newMap: Tile[][] = map.map((row) =>
+export function calculateFOV(
+  map: Tile[][],
+  position: { x: number; y: number }
+): Tile[][] {
+  const newMap = map.map((row) =>
     row.map((tile) => ({
       ...tile,
-      visibility: tile.visibility === "visible" ? "fog" : tile.visibility,
-      // On reset la lumière active, mais on garde une "ambiance" de base pour le fog
-      lightLevel: 0,
+      // Si la tuile était visible, elle devient "fog" (brouillard de guerre / exploré).
+      // Sinon elle reste dans son état précédent (hidden ou fog).
+      visibility:
+        tile.visibility === "visible" ? "fog" : tile.visibility || "hidden",
     }))
   );
 
-  const precision = 360; // Bonne précision
-  const stepSize = 0.3; // Optimisation légère
+  const startX = Math.round(position.x);
+  const startY = Math.round(position.y);
 
-  for (let i = 0; i < precision; i++) {
-    const angle = (i / precision) * 2 * Math.PI;
-    const sin = Math.sin(angle);
-    const cos = Math.cos(angle);
+  // Algorithme de FOV : Raycasting simple mais efficace pour les roguelikes
+  for (let i = 0; i < 360; i += 0.5) {
+    // Pas angulaire plus fin (0.5) pour éviter les trous à longue distance
+    const rad = (i * Math.PI) / 180;
+    const dx = Math.cos(rad);
+    const dy = Math.sin(rad);
 
-    for (let r = 0; r <= VIEW_RADIUS; r += stepSize) {
-      const x = Math.round(playerPos.x + cos * r);
-      const y = Math.round(playerPos.y + sin * r);
+    let x = startX + 0.5;
+    let y = startY + 0.5;
 
-      if (x < 0 || x >= w || y < 0 || y >= h) break;
+    for (let j = 0; j < RADIUS; j++) {
+      const tx = Math.floor(x);
+      const ty = Math.floor(y);
 
-      const tile = newMap[y][x];
-      const dist = Math.sqrt(
-        Math.pow(x - playerPos.x, 2) + Math.pow(y - playerPos.y, 2)
-      );
-
-      // COURBE DE LUMIÈRE "DOUCE" (Linear Ease-Out)
-      // 1.0 proche du joueur, descend doucement vers 0
-      // C'est beaucoup moins agressif que la courbe quadratique précédente
-      let light = 1.0 - dist / VIEW_RADIUS;
-
-      // On booste un peu les tons moyens pour y voir clair
-      light = light * 1.2;
-
-      light = Math.max(0, Math.min(1, light));
-
-      // Mise à jour de la tuile
-      if (light > (tile.lightLevel || 0) || tile.visibility !== "visible") {
-        newMap[y][x] = {
-          ...tile,
-          visibility: "visible",
-          lightLevel: light,
-        };
-      }
-
-      if (tile.type === "wall") {
-        // On éclaire le mur, mais on ne voit pas derrière
+      if (ty < 0 || ty >= newMap.length || tx < 0 || tx >= newMap[0].length) {
         break;
       }
+
+      // Marquer comme visible
+      // On force le cast ici pour satisfaire le compilateur si le type Tile est strict
+      (newMap[ty][tx] as any).visibility = "visible";
+
+      // Calcul de la lumière basé sur la distance (dégradé)
+      // 1.0 au centre, 0.4 à la limite du rayon
+      const dist = Math.sqrt((tx - startX) ** 2 + (ty - startY) ** 2);
+      const intensity = Math.max(0.4, 1 - dist / (RADIUS + 2));
+      newMap[ty][tx].lightLevel = intensity;
+
+      // Vérification du type pour bloquer la lumière.
+      // On utilise 'as any' pour vérifier 'door' même si le type ne l'autorise pas explicitement
+      const tileType = (newMap[ty][tx] as any).type;
+      if (tileType === "wall" || tileType === "door") {
+        break; // La lumière s'arrête aux murs
+      }
+
+      x += dx;
+      y += dy;
     }
   }
 
-  // Joueur toujours éclairé
-  const px = Math.round(playerPos.x);
-  const py = Math.round(playerPos.y);
-  if (px >= 0 && px < w && py >= 0 && py < h) {
-    newMap[py][px] = {
-      ...newMap[py][px],
-      visibility: "visible",
-      lightLevel: 1.0,
-    };
+  // Assurer que la case du joueur est toujours visible
+  if (
+    startY >= 0 &&
+    startY < newMap.length &&
+    startX >= 0 &&
+    startX < newMap[0].length
+  ) {
+    (newMap[startY][startX] as any).visibility = "visible";
+    newMap[startY][startX].lightLevel = 1.0;
   }
 
   return newMap;

@@ -1,48 +1,60 @@
-import { Entity } from "@/types/game";
+import { Entity, Stats } from "@/types/game";
 
-export interface NPCConfig extends Partial<Entity> {
-  dialogueId: string;
-  portrait?: string; // Pour une future UI de dialogue
-}
+// On étend Partial<Entity> pour être sûr que TS accepte les champs spécifiques
+// tout en gardant l'autocomplétion
+type NPCConfig = Partial<Entity> & {
+  dialogueId?: string;
+  questId?: string;
+  // On redéclare explicitement pour éviter les conflits d'inférence
+  interactable?: boolean;
+  dialogue?: string[];
+  shopInventory?: any[];
+};
 
 export const NPC_DB: Record<string, NPCConfig> = {
-  WOUNDED_GUARD: {
-    name: "Garde Blessé",
-    // Changement ici : On utilise MERCHANT (humain) au lieu de PLAYER
+  MERCHANT: {
+    type: "merchant",
+    name: "Marchand Ambulant",
     spriteKey: "MERCHANT",
-    stats: {
-      hp: 10,
-      maxHp: 10,
-      mana: 0,
-      maxMana: 0,
-      attack: 0,
-      defense: 0,
-      speed: 0,
-      xpValue: 0,
-      critChance: 0,
-      critDamage: 0,
-      dodgeChance: 0,
-      lifesteal: 0,
-      armorPen: 0,
-      cooldownReduction: 0,
-      spellPower: 0,
-      strength: 0,
-      endurance: 0,
-      agility: 0,
-      wisdom: 0,
-      willpower: 0,
-      luck: 0,
-      accuracy: 0,
-      arcane: 0,
-    },
+    isHostile: false,
+    visualScale: 1.2,
+    stats: { hp: 100, maxHp: 100 } as Stats,
+    interactable: true,
+    dialogue: [
+      "J'ai des articles rares...",
+      "L'or est la seule langue que je parle.",
+      "C'est dangereux dehors, achetez une potion.",
+    ],
+  },
+  WOUNDED_GUARD: {
+    type: "npc",
+    name: "Garde Blessé",
+    spriteKey: "MERCHANT",
+    stats: { hp: 10, maxHp: 10 } as Stats,
     visualScale: 1,
     isHostile: false,
+    interactable: true,
     dialogueId: "intro_guard",
-    rarityColor: "#ef4444", // Le rouge sera appliqué comme teinte
+    questId: "q_rats_1",
+    rarityColor: "#ef4444",
+  },
+  OLD_MAN: {
+    type: "npc",
+    name: "Vieux Sage",
+    spriteKey: "MERCHANT",
+    rarityColor: "#3b82f6",
+    isHostile: false,
+    visualScale: 0.9,
+    stats: { hp: 30, maxHp: 30 } as Stats,
+    interactable: true,
+    questId: "q_skeleton_king",
+    dialogue: [
+      "Le Roi Squelette s'éveille...",
+      "Les murs murmurent son retour.",
+    ],
   },
 };
 
-// Base de données des dialogues (Simple Arbre)
 export const DIALOGUE_DB: Record<
   string,
   {
@@ -68,7 +80,7 @@ export const DIALOGUE_DB: Record<
     responses: [
       {
         text: "J'accepte la mission. (Accepter Quête)",
-        action: "accept_quest_survive", // Action déclenchée
+        action: "accept_quest_survive",
         next: "intro_guard_end",
       },
     ],
@@ -82,7 +94,6 @@ export const DIALOGUE_DB: Record<
       },
     ],
   },
-  // Dialogue par défaut si on lui reparle
   intro_guard_repeat: {
     text: "(Le garde respire difficilement et ne répond plus.)",
     responses: [
@@ -92,4 +103,24 @@ export const DIALOGUE_DB: Record<
       },
     ],
   },
+};
+
+export const createNPC = (key: string, x: number, y: number): Entity => {
+  const template = NPC_DB[key] || NPC_DB["MERCHANT"];
+  return {
+    id: `npc_${key}_${Date.now()}_${Math.random()}`,
+    type: template.type || "npc",
+    name: template.name || "Inconnu",
+    position: { x, y },
+    spriteKey: template.spriteKey || "MERCHANT",
+    stats: { ...(template.stats || { hp: 10, maxHp: 10 }) },
+    isHostile: false,
+    interactable: true,
+    dialogue: template.dialogue,
+    dialogueId: template.dialogueId,
+    shopInventory: template.shopInventory,
+    questId: template.questId,
+    visualScale: template.visualScale || 1,
+    rarityColor: template.rarityColor,
+  } as Entity;
 };

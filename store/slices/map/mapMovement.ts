@@ -46,8 +46,13 @@ export const handleMovePlayer = (
       dx = 1;
       break;
   }
-  const targetX = player.position.x + dx;
-  const targetY = player.position.y + dy;
+
+  // CORRECTION : On s'assure que les positions sont saines (pas de NaN)
+  const px = Number.isFinite(player.position.x) ? player.position.x : 0;
+  const py = Number.isFinite(player.position.y) ? player.position.y : 0;
+
+  const targetX = px + dx;
+  const targetY = py + dy;
 
   // 3. Limites
   if (
@@ -69,7 +74,7 @@ export const handleMovePlayer = (
       !e.isDead &&
       !e.isHidden &&
       e.type !== "rubble" &&
-      e.type !== "trap" && // On peut marcher sur les pièges !
+      e.type !== "trap" &&
       (e.isHostile || e.type === "barrel")
   );
   if (blocker) {
@@ -96,7 +101,7 @@ export const handleMovePlayer = (
 
   // 6. DÉPLACEMENT & VISIBILITÉ
   set((state) => {
-    // A. GESTION DES PIÈGES (NOUVEAU)
+    // A. GESTION DES PIÈGES
     const trap = state.enemies.find(
       (e) =>
         Math.round(e.position.x) === targetX &&
@@ -112,7 +117,6 @@ export const handleMovePlayer = (
 
     if (trap) {
       const dmg = trap.stats.attack || 5;
-      // Réduction par la défense (min 1 dégât)
       const actualDmg = Math.max(
         1,
         dmg - Math.floor(state.player.stats.defense / 2)
@@ -121,18 +125,16 @@ export const handleMovePlayer = (
       trapShake = 5;
       trapFlash = 0.3;
 
-      // Feedback visuel
       trapEffectText = {
         id: Math.random(),
         x: targetX,
         y: targetY - 0.8,
         text: `-${actualDmg}`,
-        color: "#dc2626", // Rouge sang
+        color: "#dc2626",
         life: 1.0,
         isCrit: true,
       };
 
-      // Particules de sang
       for (let i = 0; i < 5; i++) {
         trapParticles.push({
           x: targetX + 0.5,
@@ -157,7 +159,6 @@ export const handleMovePlayer = (
         (e.type === "gold" || e.type === "potion" || e.type === "item")
     );
 
-    // Initialisation pour retour
     let goldGained = 0;
     let potionFound = false;
     let inventoryFull = false;
@@ -225,7 +226,6 @@ export const handleMovePlayer = (
       newLogs = [...state.logs, `+${goldGained} Or`].slice(-20);
     if (trap) newLogs = [...newLogs, "Aïe ! Un piège !"].slice(-20);
 
-    // MISE A JOUR FOV
     const newMap = calculateFOV(state.map, { x: targetX, y: targetY });
 
     return {
@@ -234,7 +234,7 @@ export const handleMovePlayer = (
         ...state.player,
         position: { x: targetX, y: targetY },
         gold: finalGold,
-        stats: { ...state.player.stats, hp: newHp }, // Application dégâts piège
+        stats: { ...state.player.stats, hp: newHp },
       },
       enemies: newEnemies,
       inventory: newInventory,
@@ -246,7 +246,7 @@ export const handleMovePlayer = (
     };
   });
 
-  // 7. Sortie (Post-Mouvement) - Identique
+  // 7. Sortie (Post-Mouvement)
   const freshEnemies = get().enemies;
   const stairs = freshEnemies.find(
     (e) =>
@@ -269,7 +269,6 @@ export const handleMovePlayer = (
     const next = dungeonLevel + 1;
     setTimeout(() => {
       const { map, spawn, entities, levelConfig } = generateDungeon(next);
-      // Calcul du FOV initial pour le nouveau niveau !
       const mapWithFOV = calculateFOV(map, spawn);
 
       const story = storyData as any;

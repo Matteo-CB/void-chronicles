@@ -10,7 +10,8 @@ export const createCombatSlice: StateCreator<GameStore, [], [], any> = (
   projectiles: [],
   logs: [],
   floatingTexts: [],
-  particles: [], // Stockage des particules de sang/effets
+  particles: [],
+  damageFlash: 0, // Init safe
 
   updateGameLogic: (dt: number) => {
     combatLoopLogic(set, get, dt);
@@ -31,6 +32,46 @@ export const createCombatSlice: StateCreator<GameStore, [], [], any> = (
   addProjectile: (p: any) =>
     set((s) => ({ projectiles: [...s.projectiles, p] } as any)),
 
+  triggerDamageFlash: () => {
+    set({ damageFlash: 0.8 });
+    setTimeout(() => {
+      const current = (get() as any).damageFlash;
+      if (current > 0) set({ damageFlash: 0 });
+    }, 500);
+  },
+
+  // AJOUT DE LA FONCTION MANQUANTE SPAWNPARTICLES
+  spawnParticles: (
+    x: number,
+    y: number,
+    color: string,
+    count: number,
+    type: "blood" | "spark" | "normal" | "debris" = "normal"
+  ) => {
+    let newParticles = [];
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed =
+        type === "spark"
+          ? Math.random() * 0.5 + 0.2
+          : Math.random() * 0.4 + 0.1;
+      const life =
+        type === "blood" ? 2.0 + Math.random() : 0.4 + Math.random() * 0.3;
+
+      newParticles.push({
+        x: x + (Math.random() - 0.5) * 0.4,
+        y: y + (Math.random() - 0.5) * 0.4,
+        color: type === "spark" && Math.random() > 0.5 ? "#ffffff" : color,
+        life,
+        size: Math.random() * 0.15 + 0.05, // Taille ajustée (relative à la grille)
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        gravity: type === "blood" || type === "debris" ? 0.02 : 0,
+      });
+    }
+    set((s) => ({ particles: [...s.particles, ...newParticles] } as any));
+  },
+
   addEffects: (
     x: number,
     y: number,
@@ -39,23 +80,12 @@ export const createCombatSlice: StateCreator<GameStore, [], [], any> = (
     text?: string,
     textColor?: string
   ) => {
-    // Génère des particules manuellement si demandé (ex: interaction coffre)
-    let newParticles = [];
+    // Si des particules sont demandées, on utilise spawnParticles si possible ou on génère manuellement
     if (count > 0) {
-      for (let i = 0; i < count; i++) {
-        const angle = Math.random() * Math.PI * 2;
-        const speed = Math.random() * 0.1;
-        newParticles.push({
-          id: Math.random(),
-          x,
-          y,
-          vx: Math.cos(angle) * speed,
-          vy: Math.sin(angle) * speed,
-          life: 1.0,
-          color: color,
-          size: Math.random() * 0.1 + 0.05,
-          gravity: 0,
-        });
+      // On appelle la fonction locale si elle est accessible via get(), sinon on duplique la logique simple
+      const spawner = (get() as any).spawnParticles;
+      if (spawner) {
+        spawner(x, y, color, count, "spark");
       }
     }
 
@@ -75,9 +105,7 @@ export const createCombatSlice: StateCreator<GameStore, [], [], any> = (
           ]
         : s.floatingTexts;
 
-      const allParticles = [...s.particles, ...newParticles];
-
-      return { floatingTexts: newTexts, particles: allParticles } as any;
+      return { floatingTexts: newTexts } as any;
     });
   },
 });

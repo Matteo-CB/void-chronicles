@@ -43,11 +43,15 @@ export interface EnemyConfig extends Partial<Entity> {
   summonType?: string; // Quel ennemi invoquer ?
   maxSummons?: number; // Combien max ?
   healAmount?: number; // Combien de PV soigner ?
+  minLevel?: number; // AJOUT : Niveau min pour spawn
+  maxLevel?: number; // AJOUT : Niveau max pour spawn
+  xpReward?: number; // AJOUT : Pour questGen
 }
 
 export const ENEMY_DB: Record<string, EnemyConfig> = {
   RAT: {
     name: "Rat Géant",
+    type: "rat",
     spriteKey: "RAT",
     stats: {
       ...BASE_STATS,
@@ -60,9 +64,13 @@ export const ENEMY_DB: Record<string, EnemyConfig> = {
     aiBehavior: "chaser",
     aggroRange: 8,
     visualScale: 0.8,
+    minLevel: 1,
+    maxLevel: 5,
+    xpReward: 10,
   },
   GOBLIN: {
     name: "Gobelin",
+    type: "goblin",
     spriteKey: "GOBLIN",
     stats: {
       ...BASE_STATS,
@@ -75,9 +83,13 @@ export const ENEMY_DB: Record<string, EnemyConfig> = {
     aiBehavior: "chaser",
     aggroRange: 10,
     visualScale: 1,
+    minLevel: 2,
+    maxLevel: 8,
+    xpReward: 20,
   },
   SKELETON: {
     name: "Squelette",
+    type: "skeleton",
     spriteKey: "SKELETON",
     stats: {
       ...BASE_STATS,
@@ -90,9 +102,13 @@ export const ENEMY_DB: Record<string, EnemyConfig> = {
     aiBehavior: "tank",
     aggroRange: 12,
     visualScale: 1,
+    minLevel: 4,
+    maxLevel: 15,
+    xpReward: 35,
   },
   ARCHER: {
     name: "Archer Squelette",
+    type: "skeleton_archer", // type distinct pour questGen
     spriteKey: "ARCHER",
     stats: {
       ...BASE_STATS,
@@ -107,9 +123,13 @@ export const ENEMY_DB: Record<string, EnemyConfig> = {
     minDistance: 4,
     aggroRange: 10,
     visualScale: 1,
+    minLevel: 5,
+    maxLevel: 15,
+    xpReward: 40,
   },
   BAT: {
     name: "Chauve-souris",
+    type: "bat",
     spriteKey: "BAT",
     stats: {
       ...BASE_STATS,
@@ -123,9 +143,13 @@ export const ENEMY_DB: Record<string, EnemyConfig> = {
     aiBehavior: "chaser",
     aggroRange: 7,
     visualScale: 0.7,
+    minLevel: 2,
+    maxLevel: 10,
+    xpReward: 15,
   },
   SLIME: {
     name: "Slime",
+    type: "slime",
     spriteKey: "SLIME",
     stats: {
       ...BASE_STATS,
@@ -138,9 +162,13 @@ export const ENEMY_DB: Record<string, EnemyConfig> = {
     aiBehavior: "chaser",
     aggroRange: 5,
     visualScale: 1,
+    minLevel: 6,
+    maxLevel: 20,
+    xpReward: 50,
   },
   SORCERER: {
     name: "Sorcier Noir",
+    type: "cultist", // type distinct
     spriteKey: "SORCERER",
     stats: {
       ...BASE_STATS,
@@ -156,11 +184,15 @@ export const ENEMY_DB: Record<string, EnemyConfig> = {
     aggroRange: 11,
     projectileColor: "#8b5cf6",
     visualScale: 1,
+    minLevel: 8,
+    maxLevel: 25,
+    xpReward: 60,
   },
   // --- NOUVEAUX ENNEMIS ---
   ORC_WARRIOR: {
     name: "Guerrier Orc",
-    spriteKey: "ORC_WARRIOR", // Assurez-vous d'avoir ce sprite ou utilisez un existant
+    type: "orc",
+    spriteKey: "ORC_WARRIOR",
     stats: {
       ...BASE_STATS,
       hp: 120,
@@ -173,10 +205,14 @@ export const ENEMY_DB: Record<string, EnemyConfig> = {
     aiBehavior: "tank",
     aggroRange: 8,
     visualScale: 1.1,
+    minLevel: 10,
+    maxLevel: 30,
+    xpReward: 80,
   },
   NECROMANCER: {
     name: "Nécromancien",
-    spriteKey: "NECROMANCER", // Idem
+    type: "necromancer",
+    spriteKey: "NECROMANCER",
     stats: {
       ...BASE_STATS,
       hp: 60,
@@ -192,10 +228,14 @@ export const ENEMY_DB: Record<string, EnemyConfig> = {
     minDistance: 6,
     aggroRange: 12,
     visualScale: 1,
+    minLevel: 12,
+    maxLevel: 35,
+    xpReward: 100,
   },
   CLERIC: {
     name: "Clerc Corrompu",
-    spriteKey: "PRIEST", // Idem
+    type: "cleric",
+    spriteKey: "PRIEST",
     stats: {
       ...BASE_STATS,
       hp: 50,
@@ -210,7 +250,43 @@ export const ENEMY_DB: Record<string, EnemyConfig> = {
     minDistance: 5,
     aggroRange: 10,
     visualScale: 0.9,
+    minLevel: 10,
+    maxLevel: 30,
+    xpReward: 70,
   },
+  GOLEM: {
+    name: "Golem de Pierre",
+    type: "golem",
+    spriteKey: "GOLEM",
+    stats: {
+      ...BASE_STATS,
+      hp: 150,
+      maxHp: 150,
+      attack: 15,
+      defense: 10,
+      speed: 0.5,
+      xpValue: 150,
+    },
+    aiBehavior: "tank",
+    minLevel: 10,
+    maxLevel: 30,
+    xpReward: 150,
+  },
+};
+
+// --- AJOUT : Export lowercase pour compatibilité avec questGen ---
+export const ENEMIES: Record<string, EnemyConfig> = {
+  rat: ENEMY_DB.RAT,
+  goblin: ENEMY_DB.GOBLIN,
+  bat: ENEMY_DB.BAT,
+  skeleton: ENEMY_DB.SKELETON,
+  archer: ENEMY_DB.ARCHER,
+  slime: ENEMY_DB.SLIME,
+  sorcerer: ENEMY_DB.SORCERER,
+  orc: ENEMY_DB.ORC_WARRIOR,
+  necromancer: ENEMY_DB.NECROMANCER,
+  cleric: ENEMY_DB.CLERIC,
+  golem: ENEMY_DB.GOLEM,
 };
 
 export function createEnemy(
@@ -229,7 +305,7 @@ export function createEnemy(
 
   const enemyData = {
     id: `enemy_${Date.now()}_${Math.random()}`,
-    type: "enemy",
+    type: base.type || "enemy",
     name: base.name!,
     spriteKey: base.spriteKey!,
     position: { ...position },
@@ -247,6 +323,10 @@ export function createEnemy(
     summonType: base.summonType,
     maxSummons: base.maxSummons,
     healAmount: base.healAmount,
+    // Pour les quêtes
+    xpReward: base.xpReward,
+    minLevel: base.minLevel,
+    maxLevel: base.maxLevel,
   };
 
   return enemyData as any as Entity;

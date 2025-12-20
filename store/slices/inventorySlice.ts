@@ -1,6 +1,6 @@
 import { StateCreator } from "zustand";
 import { GameStore } from "../types";
-import { Item, Direction, Entity } from "@/types/game";
+import { Item, Direction, Entity, InventoryItem } from "@/types/game";
 import { SPELL_DB } from "@/lib/data/spells";
 
 interface MerchantEntity extends Entity {
@@ -22,9 +22,11 @@ export const createInventorySlice: StateCreator<
     | "buyItem"
     | "closeShop"
     | "unequipItem"
+    | "pickupItem" // Ajout manquant dans l'interface originale mais nécessaire
+    | "dropItem" // Ajout manquant
   >
 > = (set, get) => ({
-  inventory: [],
+  inventory: Array(30).fill(null), // Initialisé avec 30 slots vides
   menuSelectionIndex: 0,
 
   toggleInventory: () => {
@@ -105,7 +107,6 @@ export const createInventorySlice: StateCreator<
     }
     // --- LOGIQUE QUÊTES (SÉCURISÉE) ---
     else if (gameState === "quests") {
-      // PROTECTION ANTI-CRASH : Utilisation de [] si undefined
       const quests = player.quests || [];
       const maxQuests = Math.max(0, quests.length - 1);
 
@@ -147,9 +148,9 @@ export const createInventorySlice: StateCreator<
     }
     // --- LOGIQUE LEVEL UP ---
     else if (gameState === "levelup") {
-      const STATS_COUNT = 5;
+      const STATS_KEYS = ["strength", "endurance", "wisdom", "agility", "luck"];
       const masteryCount = player.masteries?.length || 0;
-      const maxIndex = STATS_COUNT + Math.max(0, masteryCount - 1);
+      const maxIndex = STATS_KEYS.length + Math.max(0, masteryCount - 1);
 
       if (dir === "up" && menuSelectionIndex > 0) {
         set({ menuSelectionIndex: menuSelectionIndex - 1 });
@@ -196,7 +197,8 @@ export const createInventorySlice: StateCreator<
           item.type === "potion" ||
           item.type === "consumable" ||
           (item as any).type === "scroll" ||
-          item.type === "spellbook"
+          item.type === "spellbook" ||
+          item.type === "item" // Ajout pour le parchemin générique
         ) {
           useItem(item.id);
         } else {
@@ -227,10 +229,49 @@ export const createInventorySlice: StateCreator<
       } else {
         const masteryIndex = menuSelectionIndex - STATS_KEYS.length;
         if (player.masteries && player.masteries[masteryIndex]) {
-          unlockMastery(player.masteries[masteryIndex].id);
+          unlockMastery(player.masteries[masteryIndex]);
         }
       }
     }
+  },
+
+  pickupItem: (worldItem: any) => {
+    const { inventory, addLog, player } = get();
+
+    // Cas spécial : Or
+    if (worldItem.type === "gold") {
+      set({ player: { ...player, gold: player.gold + worldItem.value } });
+      addLog(`Ramassé : ${worldItem.value} Or`);
+      return;
+    }
+
+    // Recherche slot vide
+    const emptyIndex = inventory.findIndex((item) => item === null);
+    if (emptyIndex === -1) {
+      addLog("Inventaire plein !");
+      return;
+    }
+
+    // Construction de l'objet d'inventaire
+    const newItem: InventoryItem = {
+      id: worldItem.id || `item_${Date.now()}`,
+      name: worldItem.name,
+      type: worldItem.type,
+      spriteKey: worldItem.spriteKey,
+      value: worldItem.value,
+      stats: worldItem.stats,
+      rarity: worldItem.rarity || "common",
+      description: worldItem.description,
+      // IMPORTANT : On conserve les données spéciales (ex: quête attachée)
+      quest: worldItem.quest,
+      onHitEffect: worldItem.onHitEffect,
+    } as any; // Type assertion pour passer les props additionnelles
+
+    const newInv = [...inventory];
+    newInv[emptyIndex] = newItem;
+
+    set({ inventory: newInv });
+    addLog(`Ramassé : ${newItem.name}`);
   },
 
   addItem: (item: Item): boolean => {
@@ -254,6 +295,7 @@ export const createInventorySlice: StateCreator<
       addLog(`Obtenu : ${item.name}`);
       return true;
     } else if (inventory.length < 30) {
+      // Cas de secours si le tableau n'est pas rempli
       set({ inventory: [...inventory, item] });
       addLog(`Obtenu : ${item.name}`);
       return true;
@@ -263,6 +305,17 @@ export const createInventorySlice: StateCreator<
     }
   },
 
+  dropItem: (index: number) => {
+    const { inventory, addLog } = get();
+    const item = inventory[index];
+    if (!item) return;
+
+    const newInv = [...inventory];
+    newInv[index] = null;
+    set({ inventory: newInv });
+    addLog(`Jeté : ${item.name}`);
+  },
+
   unequipItem: (slot: string) => {
     const { player, inventory, calculateStats, addLog } = get();
     if (slot !== "weapon" && slot !== "armor" && slot !== "accessory") return;
@@ -270,8 +323,8 @@ export const createInventorySlice: StateCreator<
       player.equipment[slot as keyof typeof player.equipment];
     if (!itemToUnequip) return;
 
-    const hasSpace = inventory.some((i) => i === null) || inventory.length < 30;
-    if (!hasSpace) {
+    const hasSpace = inventory.some((i) => i === null);
+    if (!hasSpace && inventory.length >= 30) {
       addLog("Inventaire plein !");
       return;
     }
@@ -279,7 +332,7 @@ export const createInventorySlice: StateCreator<
     let newInventory = [...inventory];
     const emptyIdx = newInventory.findIndex((i) => i === null);
     if (emptyIdx !== -1) newInventory[emptyIdx] = itemToUnequip;
-    else newInventory.push(itemToUnequip);
+    else newInventory.push(itemToUnequip); // Should not happen with array init
 
     set({
       player: { ...player, equipment: { ...player.equipment, [slot]: null } },
@@ -325,11 +378,36 @@ export const createInventorySlice: StateCreator<
   },
 
   useItem: (itemId: string) => {
-    const { player, inventory, addEffects, addLog } = get();
+    const { player, inventory, addEffects, addLog, acceptQuest } = get();
     const itemIndex = inventory.findIndex((i) => i && i.id === itemId);
     const item = inventory[itemIndex];
 
     if (!item) return;
+
+    // --- LOGIQUE PARCHEMIN DE QUÊTE (AJOUTÉ) ---
+    if (item.spriteKey === "SCROLL_QUEST" && (item as any).quest) {
+      const questData = (item as any).quest;
+
+      // On tente d'accepter la quête
+      // La fonction acceptQuest du store gère la vérification des doublons
+      acceptQuest(questData);
+
+      // On consomme le parchemin
+      const newInv = [...inventory];
+      newInv[itemIndex] = null;
+      set({ inventory: newInv });
+
+      // Feedback visuel
+      addEffects(
+        player.position.x,
+        player.position.y,
+        "#dc2626", // Rouge comme le sceau
+        20,
+        "QUÊTE !",
+        "#fff"
+      );
+      return;
+    }
 
     // LOGIQUE GRIMOIRE
     if (item.type === "spellbook" && item.spellId) {
@@ -369,9 +447,16 @@ export const createInventorySlice: StateCreator<
     // LOGIQUE POTION / CONSOMMABLE
     let heal = 0;
     if (item.stats && item.stats.hp) heal = item.stats.hp;
-    else if (item.type === "potion" || item.type === "consumable") heal = 50;
+    else if (item.type === "potion" || item.type === "consumable") {
+      // Valeur par défaut ou depuis onHitEffect
+      heal = (item as any).onHitEffect?.value || 50;
+    }
 
     if (heal > 0) {
+      if (player.stats.hp >= player.stats.maxHp) {
+        addLog("Santé déjà au maximum.");
+        return;
+      }
       const newHp = Math.min(player.stats.maxHp, player.stats.hp + heal);
       const newInventory = [...inventory];
       newInventory[itemIndex] = null;

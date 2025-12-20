@@ -12,7 +12,8 @@ export type GameState =
   | "levelup"
   | "pause_menu"
   | "management_menu"
-  | "quests"; // AJOUTÉ : État officiel pour le journal de quêtes
+  | "quests"
+  | "masteries"; // AJOUT : État pour l'arbre de talents
 
 export interface Position {
   x: number;
@@ -158,6 +159,9 @@ export interface Entity {
   equipment?: Equipment;
   spells?: Spell[];
   rarityColor?: string;
+
+  // Pour le ramassage de quête
+  quest?: Quest;
 }
 
 export interface Item {
@@ -182,7 +186,13 @@ export interface Item {
     power: number;
   };
   spellId?: string;
+
+  // Propriété pour les items de quête (parchemins)
+  quest?: Quest;
 }
+
+// CORRECTION : Ajout de InventoryItem
+export type InventoryItem = Item;
 
 export interface Equipment {
   weapon: Item | null;
@@ -192,7 +202,7 @@ export interface Equipment {
 
 // --- SYSTÈME DE PROGRESSION ---
 export interface Player {
-  classId?: string; // Ajout classe
+  classId?: string;
   stats: Stats;
   xp: number;
   gold: number;
@@ -209,11 +219,12 @@ export interface Player {
   learnedSpells: string[];
   equippedSpells: (string | null)[];
 
-  masteries: Mastery[];
+  // ADAPTATION : string[] est requis pour le nouveau système (stocke les IDs)
+  masteries: string[];
   quests: Quest[];
 
   lastAttackTime?: number;
-  lastDashTime?: number; // NOUVEAU
+  lastDashTime?: number;
   statusEffects: string[];
 }
 
@@ -232,10 +243,20 @@ export interface Mastery {
   description: string;
   icon: string;
   cost: number;
-  type: "passive" | "consumable";
-  maxRank: number;
-  currentRank: number;
-  effect: (p: Player) => void;
+
+  // Champs fusionnés (Ancien système + Nouveau système)
+  // Les champs optionnels (?) permettent la compatibilité avec tes anciens fichiers
+  type?: "passive" | "consumable";
+  maxRank?: number;
+  currentRank?: number;
+  effect?: (p: Player) => void;
+
+  // Nouveaux champs pour l'Arbre de Talents
+  parentId?: string | null;
+  category?: "offense" | "defense" | "utility";
+  stats?: Partial<Stats>;
+  x?: number; // Position X dans la grille
+  y?: number; // Position Y dans la grille
 }
 
 // --- COMBAT & MONDE ---

@@ -33,7 +33,7 @@ export interface CombatCallbacks {
     y: number,
     color: string,
     count: number,
-    type?: "blood" | "spark" | "normal"
+    type?: "blood" | "spark" | "normal" | "debris"
   ) => void;
   damagePlayer: (amount: number) => void;
   damageEnemy: (id: string, amount: number, isCrit?: boolean) => void;
@@ -47,115 +47,157 @@ export const createCombatCallbacks = (set: SetState, get: GetState) => {
   const newLogsToAdd: string[] = [];
   const damageEvents: DamageEvent[] = [];
 
-  const callbacks: CombatCallbacks = {
-    addProjectile: (p: Projectile) => newProjectilesToAdd.push(p),
+  // 1. DÉFINITION DES FONCTIONS INDIVIDUELLES
 
-    triggerAttackAnim: (x: number, y: number, dir: string, type: string) => {
-      const validDir: Direction = ["up", "down", "left", "right"].includes(dir)
-        ? (dir as Direction)
-        : "down";
-      get().triggerAttackAnim(x, y, validDir, type);
-    },
+  const addProjectile = (p: Projectile) => {
+    // SECURITY CHECK: On n'ajoute PAS le projectile si ses coordonnées sont corrompues (NaN/Infinity)
+    if (
+      Number.isFinite(p.startX) &&
+      Number.isFinite(p.startY) &&
+      Number.isFinite(p.targetX) &&
+      Number.isFinite(p.targetY)
+    ) {
+      newProjectilesToAdd.push(p);
+    }
+  };
 
-    triggerHitStop: (durationMs: number) => {
-      const currentStop = get().hitStop || 0;
-      if (durationMs > currentStop) set({ hitStop: durationMs });
-    },
+  const triggerAttackAnim = (
+    x: number,
+    y: number,
+    dir: string,
+    type: string
+  ) => {
+    const validDir: Direction = ["up", "down", "left", "right"].includes(dir)
+      ? (dir as Direction)
+      : "down";
+    get().triggerAttackAnim(x, y, validDir, type);
+  };
 
-    triggerScreenFlash: (opacity: number = 0.3) =>
-      set({ damageFlash: opacity }),
+  const triggerHitStop = (durationMs: number) => {
+    const currentStop = get().hitStop || 0;
+    if (durationMs > currentStop) set({ hitStop: durationMs });
+  };
 
-    addEffects: (
-      x: number,
-      y: number,
-      color: string,
-      count: number,
-      text?: string,
-      textColor?: string
-    ) => {
-      if (text) {
-        set((s) => ({
-          floatingTexts: [
-            ...s.floatingTexts,
-            {
-              id: Math.random(),
-              x: x + (Math.random() - 0.5) * 0.5,
-              y: y - 0.5,
-              text,
-              color: textColor || color,
-              life: 1.0,
-              isCrit: text.includes("!"),
-            },
-          ],
-        }));
-      }
-      if (count > 0) callbacks.spawnParticles(x, y, color, count, "spark");
-    },
+  const triggerScreenFlash = (opacity: number = 0.3) => {
+    set({ damageFlash: opacity });
+  };
 
-    addLog: (msg: string) => newLogsToAdd.push(msg),
+  const shakeScreen = (amount: number) => {
+    set((s) => ({
+      screenShake: Math.min(s.screenShake + amount, 25),
+    }));
+  };
 
-    spawnParticles: (
-      x: number,
-      y: number,
-      color: string,
-      count: number,
-      type: "blood" | "spark" | "normal" = "normal"
-    ) => {
-      const parts: Particle[] = [];
-      for (let i = 0; i < count; i++) {
-        const angle = Math.random() * Math.PI * 2;
-        const speed =
-          type === "spark"
-            ? Math.random() * 0.5 + 0.2
-            : Math.random() * 0.4 + 0.1;
-        const life =
-          type === "blood" ? 2.0 + Math.random() : 0.4 + Math.random() * 0.3;
+  const spawnParticles = (
+    x: number,
+    y: number,
+    color: string,
+    count: number,
+    type: "blood" | "spark" | "normal" | "debris" = "normal"
+  ) => {
+    const parts: Particle[] = [];
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed =
+        type === "spark"
+          ? Math.random() * 0.5 + 0.2
+          : Math.random() * 0.4 + 0.1;
+      const life =
+        type === "blood" ? 2.0 + Math.random() : 0.4 + Math.random() * 0.3;
 
-        parts.push({
-          x: x + (Math.random() - 0.5) * 0.4,
-          y: y + (Math.random() - 0.5) * 0.4,
-          color: type === "spark" && Math.random() > 0.5 ? "#ffffff" : color,
-          life,
-          size: Math.random() * 4 + 2,
-          vx: Math.cos(angle) * speed,
-          vy: Math.sin(angle) * speed,
-          // @ts-ignore
-          gravity: type === "blood" ? 0.02 : 0,
-        });
-      }
-      set((s) => ({ particles: [...s.particles, ...parts] }));
-    },
-
-    damagePlayer: (amount: number) => {
-      const p = get().player;
-      const newHp = p.stats.hp - amount;
-      set({ player: { ...p, stats: { ...p.stats, hp: newHp } } });
-
-      callbacks.triggerScreenFlash(0.5);
-      callbacks.shakeScreen(10);
-      callbacks.triggerHitStop(150);
-      if (newHp <= 0) set({ gameState: "gameover" });
-    },
-
-    damageEnemy: (id: string, amount: number, isCrit: boolean = false) => {
-      damageEvents.push({ id, amount, isCrit, sourceType: "player" });
-    },
-
-    killEnemy: (id: string) => {
-      damageEvents.push({
-        id,
-        amount: 999999,
-        isCrit: true,
-        sourceType: "player",
+      parts.push({
+        x: x + (Math.random() - 0.5) * 0.4,
+        y: y + (Math.random() - 0.5) * 0.4,
+        color: type === "spark" && Math.random() > 0.5 ? "#ffffff" : color,
+        life,
+        size: Math.random() * 4 + 2,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        // @ts-ignore
+        gravity: type === "blood" || type === "debris" ? 0.02 : 0,
       });
-    },
+    }
+    set((s) => ({ particles: [...s.particles, ...parts] }));
+  };
 
-    shakeScreen: (amount: number) =>
+  const addEffects = (
+    x: number,
+    y: number,
+    color: string,
+    count: number,
+    text?: string,
+    textColor?: string
+  ) => {
+    if (text) {
       set((s) => ({
-        screenShake: Math.min(s.screenShake + amount, 25),
-      })),
-    grantXp: (amount: number) =>
-      set((s) => ({ player: { ...s.player, xp: s.player.xp + amount } })),
+        floatingTexts: [
+          ...s.floatingTexts,
+          {
+            id: Math.random(),
+            x: x + (Math.random() - 0.5) * 0.5,
+            y: y - 0.5,
+            text,
+            color: textColor || color,
+            life: 1.0,
+            isCrit: text.includes("!"),
+          },
+        ],
+      }));
+    }
+    if (count > 0) spawnParticles(x, y, color, count, "spark");
+  };
+
+  const addLog = (msg: string) => {
+    newLogsToAdd.push(msg);
+  };
+
+  const damagePlayer = (amount: number) => {
+    const p = get().player;
+    // Protection contre les valeurs négatives ou NaN
+    const safeAmount = Math.max(0, amount || 0);
+    const newHp = p.stats.hp - safeAmount;
+
+    set({ player: { ...p, stats: { ...p.stats, hp: newHp } } });
+
+    // Appel direct des fonctions locales (plus sûr)
+    triggerScreenFlash(0.5);
+    shakeScreen(10);
+    triggerHitStop(150);
+
+    if (newHp <= 0) set({ gameState: "gameover" });
+  };
+
+  const damageEnemy = (id: string, amount: number, isCrit: boolean = false) => {
+    damageEvents.push({ id, amount, isCrit, sourceType: "player" });
+  };
+
+  const killEnemy = (id: string) => {
+    damageEvents.push({
+      id,
+      amount: 999999,
+      isCrit: true,
+      sourceType: "player",
+    });
+  };
+
+  const grantXp = (amount: number) => {
+    set((s) => ({ player: { ...s.player, xp: s.player.xp + amount } }));
+  };
+
+  // 2. ASSEMBLAGE DE L'OBJET FINAL
+  const callbacks: CombatCallbacks = {
+    addProjectile,
+    triggerAttackAnim,
+    triggerHitStop,
+    triggerScreenFlash,
+    addEffects,
+    addLog,
+    spawnParticles,
+    damagePlayer,
+    damageEnemy,
+    killEnemy,
+    shakeScreen,
+    grantXp,
   };
 
   return { callbacks, newProjectilesToAdd, newLogsToAdd, damageEvents };
@@ -166,7 +208,7 @@ export const processDamageQueue = (
   damageEvents: DamageEvent[],
   set: SetState,
   get: GetState,
-  callbacks: any,
+  callbacks: CombatCallbacks,
   logsRef: string[]
 ) => {
   let processedEnemies = [...currentEnemies];
@@ -206,7 +248,6 @@ export const processDamageQueue = (
     if (newHp <= 0) {
       // --- MORT ---
       if (target.type === "barrel") {
-        // CORRECTION : Appel explicite de l'explosion
         const playerEntity: Entity = {
           id: "player",
           type: "player",
@@ -228,7 +269,7 @@ export const processDamageQueue = (
         processedEnemies[targetIndex] = {
           ...target,
           stats: { ...target.stats, hp: 0 },
-          isDead: false, // On ne le marque pas isDead pour qu'il reste affiché comme débris
+          isDead: false,
           type: "rubble",
           spriteKey: "RUBBLE",
           isHostile: false,
@@ -252,6 +293,14 @@ export const processDamageQueue = (
           player: { ...s.player, xp: s.player.xp + target.stats.xpValue },
         }));
         logsRef.push(`${target.name} éliminé.`);
+
+        // --- TRIGGER QUÊTE : KILL ---
+        if (get().updateQuestProgress) {
+          get().updateQuestProgress("kill", target.spriteKey || "UNKNOWN", 1);
+          if (target.aiBehavior === "boss") {
+            get().updateQuestProgress("kill", "BOSS_GOLEM", 1);
+          }
+        }
 
         // --- VÉRIFICATION VICTOIRE ---
         const remainingHostiles = processedEnemies.filter(

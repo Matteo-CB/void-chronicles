@@ -45,3 +45,23 @@ export const r = (
 export const p = (ctx: DrawContext, x: number, y: number, c: string) => {
   r(ctx, x, y, 1, 1, c);
 };
+
+// --- DARK CHARACTER PALETTE (ajout) ---
+export const Dark = {
+  cloakDark: "#020617",
+  cloak: "#0f172a",
+  cloakLight: "#1e293b",
+
+  leatherDark: "#1c1917",
+  leather: "#292524",
+  leatherLight: "#44403c",
+
+  metalDark: "#18181b",
+  metal: "#3f3f46",
+  metalLight: "#a1a1aa",
+
+  glow: "#38bdf8",
+  glowSoft: "rgba(56,189,248,0.5)",
+
+  skinShadow: "#27272a",
+};

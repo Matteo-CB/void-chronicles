@@ -99,6 +99,105 @@ export const WEAPON_DB: Record<string, Item> = {
   },
 };
 
+// --- NOUVEAU : BASE D'ARTEFACTS ---
+const ARTIFACTS = [
+  {
+    name: "Anneau de Sang",
+    stats: { lifesteal: 0.05, attack: 5 },
+    desc: "Vole de la vie à chaque coup.",
+  },
+  {
+    name: "Amulette Solaire",
+    stats: { hp: 50, defense: 2 },
+    desc: "Brille d'une lumière réconfortante.",
+  },
+  {
+    name: "Bottes Ailées",
+    stats: { speed: 0.2, dodgeChance: 0.1 },
+    desc: "Vous vous sentez plus léger.",
+  },
+  {
+    name: "Gemme du Sorcier",
+    stats: { mana: 50, spellPower: 10 },
+    desc: "Pulse d'énergie arcanique.",
+  },
+  {
+    name: "Gantelet de Titan",
+    stats: { attack: 15, defense: 5, speed: -0.1 },
+    desc: "Lourd mais puissant.",
+  },
+];
+
+// --- AJOUT : EXPORT CONSTANT ITEMS (Requis pour questGen) ---
+export const ITEMS: Record<string, Item> = {
+  potion_hp_small: {
+    ...POTION_ITEM,
+    id: "potion_hp_small",
+    value: 20,
+    description: "Restaure 30 PV.",
+    onHitEffect: { type: "heal", value: 30, chance: 1 },
+  },
+  potion_mana_small: {
+    id: "potion_mana_small",
+    name: "Potion de Mana",
+    type: "potion",
+    spriteKey: "POTION",
+    visualColor: "#3b82f6",
+    value: 20,
+    description: "Restaure 30 Mana.",
+    onHitEffect: { type: "restore_mana", value: 30, chance: 1 },
+  },
+  // Parchemin de quête
+  quest_scroll_generic: {
+    id: "quest_scroll",
+    name: "Parchemin de Quête",
+    type: "item",
+    spriteKey: "SCROLL_QUEST",
+    value: 0,
+    description: "Une mission vous attend.",
+    rarity: "common",
+  },
+  // Armes de base
+  sword_rusty: {
+    id: "sword_rusty",
+    name: "Épée Rouillée",
+    type: "weapon",
+    weaponType: "sword",
+    spriteKey: "WEAPON_SWORD",
+    value: 15,
+    stats: { attack: 3 },
+    description: "Mieux que rien.",
+  },
+  staff_apprentice: {
+    id: "staff_apprentice",
+    name: "Bâton d'Apprenti",
+    type: "weapon",
+    weaponType: "staff",
+    spriteKey: "WEAPON_STAFF",
+    value: 25,
+    stats: { attack: 2, spellPower: 5 },
+    description: "Une branche imprégnée de mana.",
+  },
+  armor_cloth: {
+    id: "armor_cloth",
+    name: "Tunique en Lin",
+    type: "armor",
+    spriteKey: "ARMOR",
+    value: 10,
+    stats: { defense: 1, speed: 2 },
+    description: "Léger et aéré.",
+  },
+  ring_wood: {
+    id: "ring_wood",
+    name: "Anneau de Bois",
+    type: "accessory",
+    spriteKey: "RELIC",
+    value: 30,
+    stats: { maxHp: 10 },
+    description: "Un simple anneau porte-bonheur.",
+  },
+};
+
 export function generateLoot(level: number): Item {
   // --- LOOT INTELLIGENT ---
   // On ajoute un bonus de chance basé sur le niveau (1% par niveau, max 30%)
@@ -248,16 +347,33 @@ export function generateLoot(level: number): Item {
       item.color = spell.color;
     }
   } else if (type === "accessory") {
-    item.name = "Relique";
+    // --- NOUVEAU : GENERATION ARTEFACTS ---
+    const baseArtifact =
+      ARTIFACTS[Math.floor(Math.random() * ARTIFACTS.length)];
+    item.name = baseArtifact.name;
+    item.description = baseArtifact.desc;
+
+    // Application des stats de l'artefact
+    item.stats = { ...item.stats, ...baseArtifact.stats };
+
+    // Scaling avec le niveau et la rareté
+    if (item.stats.hp)
+      item.stats.hp = Math.floor(item.stats.hp * mult * (1 + level * 0.1));
+    if (item.stats.mana)
+      item.stats.mana = Math.floor(item.stats.mana * mult * (1 + level * 0.1));
+    if (item.stats.attack)
+      item.stats.attack = Math.floor(
+        item.stats.attack * mult * (1 + level * 0.1)
+      );
+
     if (prefix) {
       item.name = `${prefix.name} ${item.name}`;
-      item.stats!.maxHp = 20 * level;
+      item.stats!.maxHp = (item.stats!.maxHp || 0) + 20 * level;
     }
     if (suffix) {
       item.name = `${item.name} ${suffix.name}`;
-      item.stats!.critChance = 0.1;
+      item.stats!.critChance = (item.stats!.critChance || 0) + 0.1;
     }
-    if (!prefix && !suffix) item.stats!.maxMana = 20 * level;
   } else {
     // Armor
     item.name = "Plastron";

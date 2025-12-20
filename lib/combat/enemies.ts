@@ -1,5 +1,6 @@
 import { Entity, MapTile } from "@/types/game";
-import { CombatCallbacks } from "@/store/slices/combat/combatCallbacks";
+// CORRECTION : Import depuis le fichier local pour éviter les cycles
+import { CombatCallbacks } from "./types";
 import { checkLineOfSight, getDistance } from "./utils";
 import { createEnemy } from "../data/enemies"; // Import nécessaire pour l'invocation
 
@@ -50,6 +51,7 @@ export const updateEnemiesLogic = (
       const nextX = e.position.x + (e.knockbackX || 0);
       const nextY = e.position.y + (e.knockbackY || 0);
 
+      // Utilisation de la fonction locale isWall
       if (!isWall(map, nextX, nextY)) {
         return {
           ...e,
@@ -285,12 +287,7 @@ export const updateEnemiesLogic = (
             `+${healAmount}`
           );
 
-          // On triche un peu : on modifie les HP directement ici (ou via callback si on voulait être puriste)
-          // Comme on est dans map(), on ne peut pas modifier 'other' directement dans ce tour
-          // Solution : Le healer lance un projectile de soin ou on utilise damageEnemy avec valeur négative ?
-          // Pour simplifier ici : on utilise damageEnemy avec -healAmount si le système le supporte,
-          // sinon on suppose que le système de combat gère ça.
-          // Hack : On va utiliser damageEnemy(-valeur).
+          // On utilise damageEnemy avec une valeur négative pour soigner
           callbacks.damageEnemy(targetAlly.id, -healAmount);
         }
       }
@@ -367,7 +364,7 @@ export const updateEnemiesLogic = (
   return [...updatedEnemies, ...spawnedEntities];
 };
 
-// --- CERVEAU DU BOSS (Inchangé pour l'instant) ---
+// --- CERVEAU DU BOSS ---
 function handleBossAI(
   boss: Entity,
   player: Entity,

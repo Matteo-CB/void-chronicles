@@ -94,3 +94,142 @@ body {
     rgba(0, 0, 0, 0.8) 100%
   );
 }
+
+/* --- ANIMATIONS "JUICIES" --- */
+
+/* Flottement pour les items */
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+.animate-float {
+  animation: float 2s ease-in-out infinite;
+}
+
+/* Respiration pour les ennemis (Idle) */
+@keyframes breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+.animate-breathe {
+  animation: breathe 3s ease-in-out infinite;
+}
+
+/* Secousse d'écran (Screenshake) */
+@keyframes shake {
+  0% {
+    transform: translate(1px, 1px) rotate(0deg);
+  }
+  10% {
+    transform: translate(-1px, -2px) rotate(-1deg);
+  }
+  20% {
+    transform: translate(-3px, 0px) rotate(1deg);
+  }
+  30% {
+    transform: translate(3px, 2px) rotate(0deg);
+  }
+  40% {
+    transform: translate(1px, -1px) rotate(1deg);
+  }
+  50% {
+    transform: translate(-1px, 2px) rotate(-1deg);
+  }
+  60% {
+    transform: translate(-3px, 1px) rotate(0deg);
+  }
+  70% {
+    transform: translate(3px, 1px) rotate(-1deg);
+  }
+  80% {
+    transform: translate(-1px, -1px) rotate(1deg);
+  }
+  90% {
+    transform: translate(1px, 2px) rotate(0deg);
+  }
+  100% {
+    transform: translate(1px, -2px) rotate(-1deg);
+  }
+}
+.animate-shake {
+  animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+/* Dégâts reçus (Flash rouge) */
+@keyframes flash-damage {
+  0%,
+  100% {
+    filter: none;
+  }
+  50% {
+    filter: sepia(1) hue-rotate(-50deg) saturate(5);
+  }
+}
+.animate-damage {
+  animation: flash-damage 0.3s ease-in-out;
+}
+
+/* Attaque (Coup vers l'avant) */
+@keyframes lunge {
+  0% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(0, -10px) scale(1.2);
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
+.animate-attack {
+  animation: lunge 0.2s ease-out;
+}
+
+/* Texte flottant (Dégâts) */
+@keyframes popup {
+  0% {
+    transform: translateY(0) scale(0.5);
+    opacity: 0;
+  }
+  20% {
+    transform: translateY(-10px) scale(1.2);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-40px) scale(1);
+    opacity: 0;
+  }
+}
+.animate-popup {
+  animation: popup 1s ease-out forwards;
+}
+
+/* Transition fluide pour les déplacements */
+.transition-pos {
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Scrollbar personnalisée pour l'inventaire */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #18181b;
+}
+::-webkit-scrollbar-thumb {
+  background: #4b5563;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}

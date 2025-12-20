@@ -1,7 +1,8 @@
 import { Entity, Item, Stats } from "@/types/game";
 import { createEnemy } from "@/lib/data/enemies";
 import { Room } from "./types";
-import { POTION_ITEM } from "@/lib/data/items"; // Import Potion
+import { POTION_ITEM, ITEMS } from "@/lib/data/items"; // Import ITEMS pour l'équipement
+import { generateProceduralQuest } from "../questGen"; // Import du générateur
 
 function createDecoration(
   id: string,
@@ -95,6 +96,31 @@ export function spawnEntitiesInRoom(
         visualScale: 0.8,
         value: 0, // Pas de valeur monétaire, juste du soin
       });
+    }
+  }
+
+  // --- AJOUT : SPAWN PARCHEMIN DE QUÊTE (3% par salle) ---
+  if (Math.random() < 0.03) {
+    const qx = room.x + Math.floor(Math.random() * room.w);
+    const qy = room.y + Math.floor(Math.random() * room.h);
+    if (!entities.some((e) => e.position.x === qx && e.position.y === qy)) {
+      const quest = generateProceduralQuest(level);
+      if (quest) {
+        entities.push({
+          id: `quest_scroll_${Math.random()}`,
+          type: "item",
+          name: "Parchemin de Quête",
+          spriteKey: "SCROLL_QUEST",
+          position: { x: qx, y: qy },
+          stats: { hp: 1, maxHp: 1 } as Stats,
+          isHostile: false,
+          visualScale: 0.8,
+          value: 0,
+          // On attache la quête générée à l'entité
+          // Le système de ramassage (inventorySlice) devra la conserver
+          quest: quest,
+        } as any);
+      }
     }
   }
 }

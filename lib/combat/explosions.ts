@@ -1,5 +1,6 @@
 import { Entity } from "@/types/game";
-import { CombatCallbacks } from "@/store/slices/combat/combatCallbacks";
+// CHANGEMENT ICI : On utilise le type local pour éviter les dépendances circulaires
+import { CombatCallbacks } from "./types";
 
 export function triggerBarrelExplosion(
   barrel: Entity,
@@ -10,43 +11,35 @@ export function triggerBarrelExplosion(
   callbacks.addLog("Le baril explose violemment !");
 
   // IMPACT VISUEL IMMÉDIAT
-  callbacks.shakeScreen(20); // Secousse violente
-  callbacks.triggerScreenFlash(0.6); // Flash blanc aveuglant
+  callbacks.shakeScreen(20);
+  callbacks.triggerScreenFlash(0.6);
 
   const x = barrel.position.x;
   const y = barrel.position.y;
 
-  // COUCHE 1 : LE CŒUR DE L'EXPLOSION (Blanc/Jaune très chaud)
-  // Particules très brillantes, vie courte
+  // COUCHE 1 : CŒUR (Blanc/Jaune)
   callbacks.spawnParticles(x, y, "#fffbeb", 20, "spark");
   callbacks.spawnParticles(x, y, "#fbbf24", 30, "normal");
 
-  // COUCHE 2 : LE FEU (Orange/Rouge)
-  // Particules qui s'étendent un peu plus loin
+  // COUCHE 2 : FEU (Orange/Rouge)
   callbacks.spawnParticles(x, y, "#ef4444", 40, "normal");
   callbacks.spawnParticles(x, y, "#f97316", 40, "normal");
 
-  // COUCHE 3 : LA FUMÉE (Noire/Grise)
-  // Particules lourdes qui restent longtemps
-  callbacks.spawnParticles(x, y, "#27272a", 30, "blood"); // On réutilise le type 'blood' pour la gravité/lourdeur
+  // COUCHE 3 : FUMÉE (Utilisation de "blood" pour la gravité/lourdeur)
+  callbacks.spawnParticles(x, y, "#27272a", 30, "blood");
 
-  // COUCHE 4 : ONDE DE CHOC (Simulation)
-  // On crée un cercle de particules rapides
+  // Onde de choc (simulation visuelle)
   for (let i = 0; i < 16; i++) {
     const angle = (Math.PI * 2 * i) / 16;
-    // On simule manuellement l'ajout via spawnParticles en trichant un peu sur la position de départ
-    // pour créer un anneau qui s'étend
-    // (Idéalement on ajouterait un type 'shockwave' dans le moteur de particules, mais on fait avec l'existant)
+    // On pourrait ajouter des particules directionnelles ici
   }
 
-  // TEXTE FLOTTANT STYLÉ
   callbacks.addEffects(x, y, "#ef4444", 0, "BOOM!", "#fbbf24");
 
-  // LOGIQUE DE DÉGÂTS (Inchangée mais re-vérifiée)
-  const radius = 4.5; // Rayon augmenté
-  const damage = 120; // Dégâts massifs
+  const radius = 4.5;
+  const damage = 120;
 
-  // Dégâts aux ennemis
+  // Dégâts ennemis
   enemies.forEach((e) => {
     if (!e.isDead && e.id !== barrel.id) {
       const dist = Math.sqrt(
@@ -59,7 +52,6 @@ export function triggerBarrelExplosion(
 
         callbacks.damageEnemy(e.id, actualDmg, true); // Toujours critique
 
-        // Feedback Textuel
         callbacks.addEffects(
           e.position.x,
           e.position.y,
@@ -69,16 +61,14 @@ export function triggerBarrelExplosion(
           "#fff"
         );
 
-        // RECUL MASSIF
+        // Recul
         const angle = Math.atan2(e.position.y - y, e.position.x - x);
         const force = 3.0 * distFactor;
 
-        // On modifie directement l'objet (c'est sale mais ça marche avec le systeme actuel)
-        // L'idéal serait de passer par une action, mais updateEnemiesLogic gère la physique à la frame suivante
+        // Modification directe pour la physique immédiate
         (e as any).knockbackX = Math.cos(angle) * force;
         (e as any).knockbackY = Math.sin(angle) * force;
 
-        // Stun garanti
         if (!(e as any).statusEffects) (e as any).statusEffects = [];
         (e as any).statusEffects.push("stun");
       }
@@ -90,7 +80,7 @@ export function triggerBarrelExplosion(
     Math.pow(player.position.x - x, 2) + Math.pow(player.position.y - y, 2)
   );
   if (distPlayer <= radius) {
-    const pDmg = Math.floor(damage * 0.3); // Le joueur résiste mieux
+    const pDmg = Math.floor(damage * 0.3);
     callbacks.damagePlayer(pDmg);
     callbacks.addEffects(
       player.position.x,
@@ -102,7 +92,6 @@ export function triggerBarrelExplosion(
   }
 }
 
-// Fonction générique conservée pour compatibilité sorts
 export function handleExplosion(
   x: number,
   y: number,

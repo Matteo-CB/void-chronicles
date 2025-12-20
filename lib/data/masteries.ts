@@ -1,88 +1,175 @@
-import { Mastery, Player } from "@/types/game";
+import { Mastery } from "@/types/game";
 
-export const MASTERIES_DB: Mastery[] = [
+// L'arbre est conçu sur une grille 5x5 virtuelle.
+// Categories: OFFENSE (Rouge), DEFENSE (Bleu), UTILITY (Vert/Jaune)
+
+export const MASTERY_TREE: Mastery[] = [
+  // =========================================
+  // ⚔️ BRANCHE OFFENSIVE (GAUCHE - x:0, x:1)
+  // =========================================
   {
-    id: "m_ring_might",
-    name: "Anneau de Force",
-    description: "Augmente les dégâts physiques de 5% par rang.",
-    icon: "💍",
+    id: "off_1_strength",
+    name: "Force Primordiale",
+    description: "+5 Attaque. La base de toute violence.",
+    icon: "sword",
     cost: 1,
-    type: "passive",
-    maxRank: 5,
-    currentRank: 0,
-    effect: (p: Player) => {
-      p.stats.attack = Math.floor(p.stats.attack * 1.05);
-    },
+    parentId: null,
+    category: "offense",
+    stats: { attack: 5 },
+    x: 0,
+    y: 0,
   },
   {
-    id: "m_relic_life",
-    name: "Relique Vitale",
-    description: "Augmente les PV max de 25 par rang.",
-    icon: "📿",
-    cost: 1,
-    type: "passive",
-    maxRank: 10,
-    currentRank: 0,
-    effect: (p: Player) => {
-      p.stats.maxHp += 25;
-      p.stats.hp += 25;
-    },
-  },
-  {
-    id: "m_potion_pack",
-    name: "Réserve d'Urgence",
-    description: "[CONSOMMABLE] Donne immédiatement 2 Potions de Soin.",
-    icon: "🎒",
-    cost: 1,
-    type: "consumable",
-    maxRank: 99,
-    currentRank: 0,
-    effect: (p: Player) => {
-      /* Géré dans le slice */
-    },
-  },
-  {
-    id: "m_boots_speed",
-    name: "Bottes de Célérité",
-    description: "Augmente l'esquive de 2% par rang.",
-    icon: "👢",
-    cost: 1,
-    type: "passive",
-    maxRank: 5,
-    currentRank: 0,
-    effect: (p: Player) => {
-      p.stats.dodgeChance += 0.02;
-    },
-  },
-  {
-    id: "m_scroll_knowledge",
-    name: "Module de Savoir",
-    description: "[CONSOMMABLE] Restaure tout le Mana et donne de l'XP.",
-    icon: "📜",
-    cost: 1,
-    type: "consumable",
-    maxRank: 99,
-    currentRank: 0,
-    effect: (p: Player) => {
-      p.stats.mana = p.stats.maxMana;
-      p.xp += 20;
-    },
-  },
-  {
-    id: "m_gem_focus",
-    name: "Gemme de Focus",
-    description: "Réduit les temps de recharge de 5%.",
-    icon: "💎",
+    id: "off_2_precision",
+    name: "Précision Chirurgicale",
+    description: "+10% Chances Critiques. Visez les yeux.",
+    icon: "crit",
     cost: 2,
-    type: "passive",
-    maxRank: 3,
-    currentRank: 0,
-    effect: (p: Player) => {
-      p.stats.cooldownReduction += 0.05;
-    },
+    parentId: "off_1_strength",
+    category: "offense",
+    stats: { critChance: 0.1 },
+    x: 0,
+    y: 1,
+  },
+  {
+    id: "off_3_lethality",
+    name: "Létalité",
+    description: "+25% Dégâts Critiques. Faites les souffrir.",
+    icon: "skull",
+    cost: 3,
+    parentId: "off_2_precision",
+    category: "offense",
+    stats: { critDamage: 0.25 },
+    x: 0,
+    y: 2,
+  },
+  // Branche hybride Magie/Attaque
+  {
+    id: "off_mag_1",
+    name: "Lame Enchantée",
+    description: "+10 Puissance des Sorts. Mêlez le fer et la magie.",
+    icon: "zap",
+    cost: 2,
+    parentId: "off_1_strength",
+    category: "offense",
+    stats: { spellPower: 10 },
+    x: 1,
+    y: 1,
+  },
+  {
+    id: "off_ultimate",
+    name: "SEIGNEUR DE GUERRE",
+    description: "+30 Attaque, +10% Vitesse d'Attaque. Devenez la mort.",
+    icon: "swords",
+    cost: 5,
+    parentId: "off_3_lethality",
+    category: "offense",
+    stats: { attack: 30, attackSpeed: 0.1 },
+    x: 0,
+    y: 3,
+  },
+
+  // =========================================
+  // 🛡️ BRANCHE DÉFENSIVE (CENTRE - x:2)
+  // =========================================
+  {
+    id: "def_1_vitality",
+    name: "Constitution",
+    description: "+30 PV Max. Pour durer plus longtemps.",
+    icon: "heart",
+    cost: 1,
+    parentId: null,
+    category: "defense",
+    stats: { maxHp: 30 },
+    x: 2,
+    y: 0,
+  },
+  {
+    id: "def_2_iron",
+    name: "Peau d'Acier",
+    description: "+8 Défense. Les coups rebondissent.",
+    icon: "shield",
+    cost: 2,
+    parentId: "def_1_vitality",
+    category: "defense",
+    stats: { defense: 8 },
+    x: 2,
+    y: 1,
+  },
+  {
+    id: "def_3_regen",
+    name: "Sang de Troll",
+    description: "+2 Régénération HP/sec (Simulé).",
+    icon: "plus",
+    cost: 3,
+    parentId: "def_2_iron",
+    category: "defense",
+    stats: { hpRegen: 2 },
+    x: 2,
+    y: 2,
+  },
+  {
+    id: "def_ultimate",
+    name: "COLOSSE",
+    description: "+100 PV Max, +10 Défense. Inébranlable.",
+    icon: "castle",
+    cost: 5,
+    parentId: "def_3_regen",
+    category: "defense",
+    stats: { maxHp: 100, defense: 10 },
+    x: 2,
+    y: 3,
+  },
+
+  // =========================================
+  // ✨ BRANCHE UTILITAIRE (DROITE - x:3, x:4)
+  // =========================================
+  {
+    id: "util_1_runner",
+    name: "Vélocité",
+    description: "+10% Vitesse de déplacement.",
+    icon: "boot",
+    cost: 1,
+    parentId: null,
+    category: "utility",
+    stats: { speed: 0.1 },
+    x: 4,
+    y: 0,
+  },
+  {
+    id: "util_2_greed",
+    name: "Avidité",
+    description: "+25 Chance (Loot). L'or coule à flots.",
+    icon: "coin",
+    cost: 2,
+    parentId: "util_1_runner",
+    category: "utility",
+    stats: { luck: 25 },
+    x: 4,
+    y: 1,
+  },
+  {
+    id: "util_3_mana",
+    name: "Esprit Vaste",
+    description: "+50 Mana Max. Lancez plus de sorts.",
+    icon: "star",
+    cost: 2,
+    parentId: "util_1_runner",
+    category: "utility",
+    stats: { maxMana: 50 },
+    x: 3,
+    y: 1,
+  },
+  {
+    id: "util_ultimate",
+    name: "OMNISCIENCE",
+    description: "+50% Gain XP, +10% Vitesse Globale.",
+    icon: "eye",
+    cost: 5,
+    parentId: "util_2_greed",
+    category: "utility",
+    stats: { speed: 0.1, xpGain: 0.5 }, // Note: xpGain doit être supporté dans la logique
+    x: 4,
+    y: 3,
   },
 ];
-
-export function getInitialMasteries(): Mastery[] {
-  return JSON.parse(JSON.stringify(MASTERIES_DB));
-}

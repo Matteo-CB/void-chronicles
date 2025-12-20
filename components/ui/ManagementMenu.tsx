@@ -4,139 +4,172 @@ import useGameStore from "@/store/gameStore";
 import InventoryUI from "./InventoryUI";
 import SpellBookUI from "./SpellBookUI";
 import QuestLogUI from "./QuestLogUI";
-import { Backpack, BookOpen, Scroll, ArrowLeftRight } from "lucide-react";
+import MasteryUI from "./MasteryUI";
+import { Backpack, BookOpen, Scroll, GitBranch } from "lucide-react";
 
 export default function ManagementMenu() {
   const gameState = useGameStore((s) => s.gameState);
   const setGameState = useGameStore((s) => s.setGameState);
   const inputMethod = useGameStore((s) => s.inputMethod);
 
-  // Dérivation de l'onglet actif depuis le state global
+  // Détermination de l'onglet actif basé sur le gameState global
+  // Cela permet à la navigation clavier (gérée ailleurs) de se refléter ici
   const activeTab =
     gameState === "spellbook"
       ? "spells"
       : gameState === "quests"
       ? "quests"
+      : gameState === "masteries"
+      ? "masteries"
       : "inventory";
 
+  // Fonction explicite pour le clic
+  const handleTabChange = (
+    tab: "inventory" | "spellbook" | "quests" | "masteries"
+  ) => {
+    setGameState(tab);
+  };
+
   return (
-    <div className="absolute inset-0 z-[50] flex flex-col bg-black/90 animate-in fade-in slide-in-from-bottom-2 duration-300">
-      {/* BARRE D'ONGLETS */}
-      <div className="flex-none h-20 flex items-center justify-center gap-4 md:gap-8 border-b border-zinc-800 bg-[#050508] shadow-2xl z-10">
-        {/* INVENTAIRE */}
-        <button
-          onClick={() => setGameState("inventory")}
-          className={`relative group flex items-center gap-3 px-6 py-3 rounded-lg border-2 transition-all duration-200 ${
-            activeTab === "inventory"
-              ? "bg-zinc-900 border-yellow-600 text-yellow-500 scale-105"
-              : "bg-transparent border-zinc-800 text-zinc-600 hover:border-zinc-600 hover:text-zinc-400"
-          }`}
-        >
-          <Backpack size={20} />
-          <span className="font-pixel text-[10px] md:text-xs tracking-widest uppercase hidden md:inline">
-            Sacoche
-          </span>
-          <div className="absolute -top-2 -left-2 bg-zinc-700 text-white text-[9px] px-1.5 py-0.5 rounded border border-zinc-500 font-bold">
-            {inputMethod === "gamepad" ? "LB" : "I"}
-          </div>
-        </button>
+    <div className="absolute inset-0 z-[50] flex flex-col bg-black/95 animate-in fade-in slide-in-from-bottom-2 duration-200 font-sans">
+      {/* --- HEADER NAVIGATION --- */}
+      <div className="flex-none h-20 md:h-24 flex items-end justify-center gap-1 md:gap-4 border-b border-zinc-800 bg-gradient-to-b from-[#08080a] to-[#111113] shadow-2xl z-20 px-4 pt-4">
+        <NavButton
+          active={activeTab === "inventory"}
+          onClick={() => handleTabChange("inventory")}
+          icon={Backpack}
+          label="Sacoche"
+          colorClass="text-yellow-500 border-yellow-600/50"
+        />
 
-        <div className="text-zinc-700">
-          <ArrowLeftRight size={16} />
-        </div>
+        <NavButton
+          active={activeTab === "spells"}
+          onClick={() => handleTabChange("spellbook")}
+          icon={BookOpen}
+          label="Grimoire"
+          colorClass="text-purple-400 border-purple-500/50"
+        />
 
-        {/* GRIMOIRE */}
-        <button
-          onClick={() => setGameState("spellbook")}
-          className={`relative group flex items-center gap-3 px-6 py-3 rounded-lg border-2 transition-all duration-200 ${
-            activeTab === "spells"
-              ? "bg-zinc-900 border-purple-500 text-purple-400 scale-105"
-              : "bg-transparent border-zinc-800 text-zinc-600 hover:border-zinc-600 hover:text-zinc-400"
-          }`}
-        >
-          <BookOpen size={20} />
-          <span className="font-pixel text-[10px] md:text-xs tracking-widest uppercase hidden md:inline">
-            Grimoire
-          </span>
-          <div className="absolute -top-2 left-1/2 -translate-x-1/2 bg-zinc-700 text-white text-[9px] px-1.5 py-0.5 rounded border border-zinc-500 font-bold">
-            {inputMethod === "gamepad" ? "LB/RB" : "TAB"}
-          </div>
-        </button>
+        <NavButton
+          active={activeTab === "quests"}
+          onClick={() => handleTabChange("quests")}
+          icon={Scroll}
+          label="Quêtes"
+          colorClass="text-green-500 border-green-600/50"
+        />
 
-        <div className="text-zinc-700">
-          <ArrowLeftRight size={16} />
-        </div>
-
-        {/* QUÊTES */}
-        <button
-          onClick={() => setGameState("quests")}
-          className={`relative group flex items-center gap-3 px-6 py-3 rounded-lg border-2 transition-all duration-200 ${
-            activeTab === "quests"
-              ? "bg-zinc-900 border-green-600 text-green-500 scale-105"
-              : "bg-transparent border-zinc-800 text-zinc-600 hover:border-zinc-600 hover:text-zinc-400"
-          }`}
-        >
-          <Scroll size={20} />
-          <span className="font-pixel text-[10px] md:text-xs tracking-widest uppercase hidden md:inline">
-            Quêtes
-          </span>
-          <div className="absolute -top-2 -right-2 bg-zinc-700 text-white text-[9px] px-1.5 py-0.5 rounded border border-zinc-500 font-bold">
-            {inputMethod === "gamepad" ? "RB" : "TAB"}
-          </div>
-        </button>
+        <NavButton
+          active={activeTab === "masteries"}
+          onClick={() => handleTabChange("masteries")}
+          icon={GitBranch}
+          label="Talents"
+          colorClass="text-red-400 border-red-500/50"
+        />
       </div>
 
-      {/* CONTENU */}
-      <div className="flex-1 relative overflow-hidden bg-[url('/grid-pattern.png')] bg-repeat opacity-100">
-        <div
-          className={`absolute inset-0 transition-all duration-300 ${
-            activeTab === "inventory"
-              ? "opacity-100 z-10"
-              : "opacity-0 z-0 pointer-events-none"
-          }`}
-        >
+      {/* --- CONTENU PRINCIPAL --- */}
+      <div className="flex-1 relative w-full h-full overflow-hidden bg-[#0a0a0c]">
+        {/* Fond texturé subtil */}
+        <div className="absolute inset-0 opacity-20 bg-[url('/grid-pattern.png')] pointer-events-none" />
+
+        <TabContent isActive={activeTab === "inventory"}>
           <InventoryUI />
-        </div>
-        <div
-          className={`absolute inset-0 transition-all duration-300 ${
-            activeTab === "spells"
-              ? "opacity-100 z-10"
-              : "opacity-0 z-0 pointer-events-none"
-          }`}
-        >
+        </TabContent>
+
+        <TabContent isActive={activeTab === "spells"}>
           <SpellBookUI />
-        </div>
-        <div
-          className={`absolute inset-0 transition-all duration-300 ${
-            activeTab === "quests"
-              ? "opacity-100 z-10"
-              : "opacity-0 z-0 pointer-events-none"
-          }`}
-        >
+        </TabContent>
+
+        <TabContent isActive={activeTab === "quests"}>
           <QuestLogUI />
-        </div>
+        </TabContent>
+
+        <TabContent isActive={activeTab === "masteries"}>
+          <MasteryUI />
+        </TabContent>
       </div>
 
-      {/* FOOTER */}
-      <div className="absolute bottom-6 w-full text-center pointer-events-none z-20">
-        <div className="inline-flex items-center gap-6 bg-black/80 backdrop-blur px-6 py-2 rounded-full border border-zinc-800 shadow-xl">
-          <div className="flex items-center gap-2">
-            <span className="text-zinc-500 text-[10px] uppercase">Fermer</span>
-            <kbd className="bg-zinc-800 text-zinc-300 px-2 py-0.5 rounded text-[10px] border border-zinc-700 font-bold">
-              {inputMethod === "gamepad" ? "B" : "I / ECHAP"}
-            </kbd>
-          </div>
-          <div className="w-[1px] h-4 bg-zinc-700"></div>
-          <div className="flex items-center gap-2">
-            <span className="text-zinc-500 text-[10px] uppercase">
-              Changer Onglet
-            </span>
-            <kbd className="bg-zinc-800 text-zinc-300 px-2 py-0.5 rounded text-[10px] border border-zinc-700 font-bold">
-              {inputMethod === "gamepad" ? "LB / RB" : "TAB"}
-            </kbd>
-          </div>
+      {/* --- FOOTER --- */}
+      <div className="flex-none h-10 bg-black/80 border-t border-zinc-800 flex items-center justify-between px-6 text-[10px] md:text-xs text-zinc-500 font-mono">
+        <span className="opacity-50">VOID CHRONICLES SYSTEM</span>
+        <div className="flex gap-6">
+          <span className="flex items-center gap-2">
+            <span
+              className={`w-2 h-2 rounded-full shadow-[0_0_5px_currentColor] ${
+                inputMethod === "gamepad"
+                  ? "bg-blue-500 text-blue-500"
+                  : "bg-zinc-600 text-zinc-600"
+              }`}
+            />
+            {inputMethod === "gamepad"
+              ? "MANETTE CONNECTÉE"
+              : "CLAVIER / SOURIS"}
+          </span>
+          <span className="text-zinc-400">
+            <strong className="text-zinc-200">ESC</strong> RETOUR
+          </span>
         </div>
       </div>
+    </div>
+  );
+}
+
+// Sous-composant pour les boutons de navigation (DRY)
+function NavButton({ active, onClick, icon: Icon, label, colorClass }: any) {
+  return (
+    <button
+      onClick={onClick}
+      className={`
+        relative group flex flex-col items-center gap-1 md:gap-2 px-4 md:px-8 py-2 md:py-3 
+        rounded-t-lg border-t-2 border-x-2 border-b-0 transition-all duration-200 ease-out
+        ${
+          active
+            ? `bg-[#1a1a1e] ${colorClass} translate-y-[1px] z-10 shadow-[0_-5px_15px_rgba(0,0,0,0.3)]`
+            : "bg-transparent border-transparent text-zinc-600 hover:text-zinc-300 hover:bg-zinc-900/40 translate-y-2 hover:translate-y-1"
+        }
+      `}
+    >
+      <Icon
+        size={active ? 22 : 18}
+        className={`transition-all duration-300 ${
+          active
+            ? "scale-110 drop-shadow-md"
+            : "grayscale opacity-70 group-hover:grayscale-0 group-hover:opacity-100"
+        }`}
+      />
+      <span
+        className={`font-pixel text-[9px] md:text-[10px] tracking-[0.15em] uppercase transition-colors ${
+          active ? "font-bold" : "font-medium"
+        }`}
+      >
+        {label}
+      </span>
+
+      {/* Ligne de connexion pour l'effet "onglet" */}
+      {active && (
+        <div className="absolute bottom-[-2px] left-0 right-0 h-[3px] bg-[#1a1a1e] w-full" />
+      )}
+    </button>
+  );
+}
+
+// Sous-composant pour le contenu avec transition
+function TabContent({
+  isActive,
+  children,
+}: {
+  isActive: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className={`absolute inset-0 p-4 md:p-8 transition-all duration-300 transform ${
+        isActive
+          ? "opacity-100 scale-100 z-10 translate-y-0"
+          : "opacity-0 scale-95 z-0 pointer-events-none translate-y-4"
+      }`}
+    >
+      {children}
     </div>
   );
 }

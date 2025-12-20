@@ -5,6 +5,8 @@ import { createPlayerSlice } from "./slices/playerSlice";
 import { createUISlice } from "./slices/uiSlice";
 import { createInventorySlice } from "./slices/inventorySlice";
 import { createCombatSlice } from "./slices/combatSlice";
+import { createQuestSlice } from "./slices/questSlice";
+import { createMasterySlice } from "./slices/masterySlice";
 
 export const useGameStore = create<GameStore>()((...a) => ({
   ...createMapSlice(...a),
@@ -12,6 +14,8 @@ export const useGameStore = create<GameStore>()((...a) => ({
   ...createUISlice(...a),
   ...createInventorySlice(...a),
   ...createCombatSlice(...a),
+  ...createQuestSlice(...a),
+  ...createMasterySlice(...a),
 
   map: [],
   levelTheme: {
@@ -35,6 +39,21 @@ export const useGameStore = create<GameStore>()((...a) => ({
       defense: 0,
       speed: 1,
       xpValue: 0,
+      critChance: 0.05,
+      critDamage: 1.5,
+      dodgeChance: 0,
+      lifesteal: 0,
+      armorPen: 0,
+      cooldownReduction: 0,
+      spellPower: 0,
+      strength: 0,
+      endurance: 0,
+      agility: 0,
+      wisdom: 0,
+      willpower: 0,
+      luck: 0,
+      accuracy: 0,
+      arcane: 0,
     },
     spriteKey: "PLAYER",
     isHostile: false,
@@ -42,10 +61,15 @@ export const useGameStore = create<GameStore>()((...a) => ({
     xp: 0,
     xpToNext: 100,
     gold: 0,
+    attributePoints: 0,
+    masteryPoints: 0,
     equipment: { weapon: null, armor: null, accessory: null },
     spells: [],
     learnedSpells: [],
     equippedSpells: ["", "", ""],
+    masteries: [],
+    quests: [],
+    statusEffects: [],
   },
   enemies: [],
   inventory: [],
