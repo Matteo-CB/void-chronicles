@@ -54,8 +54,11 @@ const STAIRS_STATS: Stats = {
   hp: 1000,
   maxHp: 1000,
   mana: 0,
+  xpRegen: 0,
+  hpGain: 0,
   maxMana: 0,
   attack: 0,
+  attackSpeed: 0,
   defense: 0,
   speed: 0,
   xpValue: 0,
@@ -79,8 +82,11 @@ const MERCHANT_STATS: Stats = {
   hp: 9999,
   maxHp: 9999,
   mana: 0,
+  xpRegen: 0,
+  hpGain: 0,
   maxMana: 0,
   attack: 0,
+  attackSpeed: 1,
   defense: 999,
   speed: 0,
   xpValue: 0,
@@ -101,7 +107,9 @@ const MERCHANT_STATS: Stats = {
   arcane: 0,
 };
 
-export function generateDungeon(level: number): {
+export function generateDungeon(
+  level: number
+): {
   map: Tile[][];
   spawn: { x: number; y: number };
   entities: Entity[];

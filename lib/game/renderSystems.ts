@@ -230,7 +230,7 @@ export const renderEffects = (
   });
   if (bloodStains.current.length > 80) bloodStains.current.shift();
 
-  bloodStains.current.forEach((stain) => {
+  bloodStains.current.forEach((stain: any) => {
     if (
       stain.x > camera.x - 50 &&
       stain.x < camera.x + canvas.width + 50 &&
@@ -369,7 +369,7 @@ export const renderEffects = (
   ctx.globalCompositeOperation = "source-over";
 
   ctx.globalCompositeOperation = "screen";
-  ambientParticles.current.forEach((p) => {
+  ambientParticles.current.forEach((p: any) => {
     p.y += p.speed;
     p.x += Math.sin(time * 0.01 + p.y) * 0.2;
     if (p.y > camera.y + canvas.height + 50) {

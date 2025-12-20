@@ -27,6 +27,8 @@ export type BiomeType = "cave" | "ruins" | "volcano" | "crystal";
 
 export interface Stats {
   hp: number;
+  hpGain: number;
+  xpRegen: number;
   maxHp: number;
   mana: number;
   maxMana: number;
@@ -63,7 +65,7 @@ export type QuestStatus =
 export interface QuestObjective {
   id: string;
   type: QuestType;
-  targetId: string;
+  targetId: string | undefined;
   description: string;
   current: number;
   required: number;
