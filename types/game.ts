@@ -324,7 +324,7 @@ export interface FloatingText {
 
 export interface SpeechBubble {
   id: string;
-  targetId: string;
+  targetId: string | undefined;
   text: string;
   color: string;
   duration: number;
