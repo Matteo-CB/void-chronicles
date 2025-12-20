@@ -42,7 +42,7 @@ export const createQuestSlice: StateCreator<
           obj.type === type &&
           (obj.targetId === targetId ||
             obj.targetId === "ANY" ||
-            targetId.includes(obj.targetId)) &&
+            targetId.includes(obj.targetId && obj.targetId)) &&
           !obj.isCompleted
         ) {
           const newCurrent = Math.min(obj.required, obj.current + amount);
