@@ -15,8 +15,11 @@ const STAIRS_STATS = {
   hp: 1000,
   maxHp: 1000,
   mana: 0,
+  xpGain: 0,
+  hpRegen: 0,
   maxMana: 0,
   attack: 0,
+  attackSpeed: 0,
   defense: 0,
   speed: 0,
   xpValue: 0,
@@ -130,8 +133,9 @@ export const createMapSlice: StateCreator<
       });
     } else {
       // --- NOUVELLE PARTIE ---
-      const { map, spawn, entities, levelConfig } =
-        generateDungeon(currentLevel);
+      const { map, spawn, entities, levelConfig } = generateDungeon(
+        currentLevel
+      );
       const mapWithFOV = calculateFOV(map, spawn);
 
       set({
@@ -296,8 +300,9 @@ export const createMapSlice: StateCreator<
         set({ currentCutsceneId: null, currentDialogue: undefined });
 
         setTimeout(() => {
-          const { map, spawn, entities, levelConfig } =
-            generateDungeon(nextLevel);
+          const { map, spawn, entities, levelConfig } = generateDungeon(
+            nextLevel
+          );
           const mapWithFOV = calculateFOV(map, spawn);
           const story = storyData as any;
           const levelEvent = story.levelEvents[nextLevel.toString()];
