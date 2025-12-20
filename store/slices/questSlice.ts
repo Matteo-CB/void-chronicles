@@ -25,7 +25,11 @@ export const createQuestSlice: StateCreator<
     addLog(`NOUVELLE QUÊTE : ${quest.title}`);
   },
 
-  updateQuestProgress: (type: string, targetId: string, amount: number = 1) => {
+  updateQuestProgress: (
+    type: string,
+    targetId: string | undefined,
+    amount: number = 1
+  ) => {
     const { player, addLog, completeQuest } = get();
     let globalUpdated = false;
     let completedQuestId: string | null = null;
@@ -42,7 +46,7 @@ export const createQuestSlice: StateCreator<
           obj.type === type &&
           (obj.targetId === targetId ||
             obj.targetId === "ANY" ||
-            targetId.includes(obj.targetId && obj.targetId)) &&
+            targetId.includes(obj.targetId)) &&
           !obj.isCompleted
         ) {
           const newCurrent = Math.min(obj.required, obj.current + amount);
