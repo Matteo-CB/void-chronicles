@@ -400,6 +400,7 @@ export function createEnemy(
       mana: 100,
       maxMana: 100,
       attack: Math.floor(base.atk * power * (isBoss ? 1.5 : 1)),
+      attackSpeed: 1,
       defense: Math.floor(level * 0.8),
       speed: 1,
       xpValue: Math.floor(20 * power * (isBoss ? 50 : 1)),
