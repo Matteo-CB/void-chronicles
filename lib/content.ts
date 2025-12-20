@@ -395,8 +395,8 @@ export function createEnemy(
     spells: mobSpells,
     equipment: { weapon, armor: null, accessory: null },
     stats: {
-      xpRegen:0,
-      hpGain:0,
+      xpGain:0,
+      hpRegen:0,
       hp: Math.floor(base.hp * power * (isBoss ? 20 : 1)),
       maxHp: Math.floor(base.hp * power * (isBoss ? 20 : 1)),
       mana: 100,

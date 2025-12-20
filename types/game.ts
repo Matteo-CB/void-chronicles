@@ -27,8 +27,8 @@ export type BiomeType = "cave" | "ruins" | "volcano" | "crystal";
 
 export interface Stats {
   hp: number;
-  hpGain: number;
-  xpRegen: number;
+  hpRegen: number;
+  xpGain: number;
   maxHp: number;
   mana: number;
   maxMana: number;
